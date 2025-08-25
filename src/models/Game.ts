@@ -3,9 +3,9 @@ import sequelize from '../db/config.js';
 
 class Game extends Model{
     id!: number;
-    title!: string;
+    name!: string;
     genre!: string;
-    backgroundImage!: string;
+    background_image!: string;
     platform!: string;
     releaseDate!: Date;
     rating!: number;
@@ -17,29 +17,29 @@ Game.init({
         primaryKey: true
     },
 
-    title: {
+    name: {
         type: DataTypes.STRING(128),
         allowNull: false
     },
 
-    genre: {
-        type: DataTypes.STRING(64),
-        allowNull: false
+    genres: {
+        type: DataTypes.TEXT,
+        allowNull: true
     },
 
     backgroundImage: {
-        type: DataTypes.STRING(256),
+        type: DataTypes.STRING,
         allowNull: true
     },
 
     platform: {
         type: DataTypes.STRING(64),
-        allowNull: false
+        allowNull: true
     },
 
     releaseDate: {
         type: DataTypes.DATE,
-        allowNull: false
+        allowNull: true
     },
 
     rating: {

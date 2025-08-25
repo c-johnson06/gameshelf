@@ -96,13 +96,15 @@ router.get('/search', async(req: Request, res: Response) => {
             genres: game.genres ? game.genres.map((g: any) => g.name) : []
         }));
 
+        res.status(200).json({games});
+
     } catch (error) {
         console.error('Error during game search:', error);
         res.status(500).json({message: 'Internal server error.'});
     }
 })
 
-router.get('/user/:userId/games', async(req: Request, res: Response) => {
+router.post('/users/:userId/games', async(req: Request, res: Response) => {
     try{
         const { userId } = req.params;
         const gameData = req.body;
@@ -112,22 +114,46 @@ router.get('/user/:userId/games', async(req: Request, res: Response) => {
         if(!user){
             return res.status(404).json({message: 'User not found.'});
         }
-
-        let game = await Game.findByPk(gameData.id);
-        if(!game){
-            game = await Game.create({
-                id: gameData.id,
-                title: gameData.name,
-                genre: gameData.genres ? gameData.genres[0] : 'Unknown',
+        
+        const [game] = await Game.findOrCreate({
+            where: { id: gameData.id },
+            defaults: {
+                name: gameData.name,
+                genres: gameData.genres ? gameData.genres.join(', ') : '',
                 backgroundImage: gameData.background_image,
-                platform: gameData.platforms ? gameData.platforms[0] : 'Unknown',
-                releaseDate: gameData.released ? new Date(gameData.released) : new Date(),
-                rating: gameData.rating || null
-            });
+                platform: gameData.platforms ? gameData.platforms.join(', ') : '',
+                releaseDate: gameData.released ? new Date(gameData.released) : null,
+                rating: gameData.rating
+            }
+        });
+        
+        await(user as any).addGame(game, {through: { playStatus: 'Want to Play' }});
+        res.status(201).json({message: 'Game added to user library.'});
+        
+    } catch (error) {
+        console.error('Error adding game to user library:', error);
+        return res.status(500).json({message: 'Internal server error.'});
+    }
+});
 
-        await(user as any).addGame(game, { through: { playStatus: 'plan-to-play' }});
-        res.status(201).json({message: 'Game added to user collection.', gameId: game.id});
+router.get('/users/:userId/games', async(req: Request, res: Response) => {
+    try{
+        const { userId } = req.params;
+
+        const user = await User.findByPk(userId, {
+            include: [{
+                model: Game,
+                through: {
+                    attributes: ['playStatus', 'personalRating', 'review']
+                }
+            }]
+        });
+
+        if(!user){
+            return res.status(404).json({message: 'User not found.'});
         }
+
+        res.status(200).json((user as any).games || []);
 
     } catch (error) {
         console.error('Error fetching user games:', error);
