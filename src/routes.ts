@@ -127,9 +127,9 @@ router.post('/users/:userId/games', async(req: Request, res: Response) => {
             }
         });
         
-        await(user as any).addGame(game, {through: { playStatus: 'Want to Play' }});
+        await(user as any).addGame(game, {through: { playStatus: 'plan-to-play' }});
         res.status(201).json({message: 'Game added to user library.'});
-        
+
     } catch (error) {
         console.error('Error adding game to user library:', error);
         return res.status(500).json({message: 'Internal server error.'});
@@ -161,7 +161,7 @@ router.get('/users/:userId/games', async(req: Request, res: Response) => {
     }
 });
 
-router.patch('/user/:userId/game/:gameId', async(req: Request, res: Response) => {
+router.patch('/users/:userId/game/:gameId', async(req: Request, res: Response) => {
     try{
         const { userId, gameId } = req.params;
         const { playStatus, personalRating, review } = req.body;

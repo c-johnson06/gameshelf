@@ -18,10 +18,6 @@ app.get('/', (req: Request, res: Response) => {
     res.send('Hello World!');
 });
 
-app.listen(PORT, () => {
-    console.log(`Server is running on http://localhost:${PORT}`);
-});
-
 const startServer = async() => {
     try {
         await sequelize.authenticate();
