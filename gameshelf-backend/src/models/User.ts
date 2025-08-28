@@ -1,11 +1,14 @@
 import { DataTypes, Model } from 'sequelize';
+import type { InferAttributes, InferCreationAttributes, CreationOptional } from 'sequelize';
 import sequelize from '../db/config.js';
 
-class User extends Model{
-    id!: number;
-    email!: string;
-    username!: string;
-    passwordHash!: string;
+class User extends Model<InferAttributes<User>, InferCreationAttributes<User>> {
+    declare id: CreationOptional<number>;
+    declare email: string;
+    declare username: string;
+    declare passwordHash: string;
+    declare createdAt: CreationOptional<Date>;
+    declare updatedAt: CreationOptional<Date>;
 }
 
 User.init({
@@ -37,10 +40,21 @@ User.init({
         type: DataTypes.STRING(128),
         allowNull: false
     },
+
+    createdAt: {
+        type: DataTypes.DATE,
+        allowNull: false
+    },
+
+    updatedAt: {
+        type: DataTypes.DATE,
+        allowNull: false
+    }
 },
 {
     sequelize,
     tableName: 'users',
+    timestamps: true
 });
 
 export default User;

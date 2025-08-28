@@ -1,4 +1,3 @@
-// frontend/src/routes/index.tsx
 import { createBrowserRouter } from 'react-router-dom'; // No longer need RouterProvider here
 import App from '../App';
 import HomePage from '../pages/HomePage';
@@ -8,7 +7,6 @@ import ProfilePage from '../pages/ProfilePage';
 import ProtectedRoute from './ProtectedRoute';
 import GamesPage from '../pages/GamesPage';
 
-// Export the router configuration directly
 export const router = createBrowserRouter([
   {
     path: '/',

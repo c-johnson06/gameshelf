@@ -1,18 +1,42 @@
 import { Model, DataTypes } from 'sequelize';
+import type { InferAttributes, InferCreationAttributes, CreationOptional, ForeignKey } from 'sequelize';
 import sequelize from '../db/config.js';
 import User from './User.js';
 import Game from './Game.js';
 
-class UserGame extends Model{
-    playStatus!: 'playing' | 'completed' | 'on-hold' | 'dropped' | 'plan-to-play';
-    personalRating!: number | null;
-    review!: string | null;
+class UserGame extends Model<InferAttributes<UserGame>, InferCreationAttributes<UserGame>> {
+    declare userId: ForeignKey<User['id']>;
+    declare gameId: ForeignKey<Game['id']>;
+    declare playStatus: 'playing' | 'completed' | 'on-hold' | 'dropped' | 'plan-to-play';
+    declare personalRating: CreationOptional<number | null>;
+    declare review: CreationOptional<string | null>;
+    declare createdAt: CreationOptional<Date>;
+    declare updatedAt: CreationOptional<Date>;
 }
 
 UserGame.init({
+    userId: {
+        type: DataTypes.INTEGER,
+        allowNull: false,
+        references: {
+            model: User,
+            key: 'id'
+        }
+    },
+
+    gameId: {
+        type: DataTypes.INTEGER,
+        allowNull: false,
+        references: {
+            model: Game,
+            key: 'id'
+        }
+    },
+
     playStatus: {
         type: DataTypes.ENUM('playing', 'completed', 'on-hold', 'dropped', 'plan-to-play'),
-        allowNull: false
+        allowNull: false,
+        defaultValue: 'plan-to-play'
     },
 
     personalRating: {
@@ -27,14 +51,40 @@ UserGame.init({
     review: {
         type: DataTypes.TEXT,
         allowNull: true
+    },
+
+    createdAt: {
+        type: DataTypes.DATE,
+        allowNull: false
+    },
+
+    updatedAt: {
+        type: DataTypes.DATE,
+        allowNull: false
     }
 },
 {
     sequelize,
-    tableName: 'user_games'
+    tableName: 'user_games',
+    timestamps: true
 });
 
-User.belongsToMany(Game, { through: UserGame, foreignKey: 'userId' });
-Game.belongsToMany(User, { through: UserGame, foreignKey: 'gameId' });
+// Define associations
+User.belongsToMany(Game, { 
+    through: UserGame, 
+    foreignKey: 'userId',
+    otherKey: 'gameId',
+    as: 'Games'
+});
+
+Game.belongsToMany(User, { 
+    through: UserGame, 
+    foreignKey: 'gameId',
+    otherKey: 'userId',
+    as: 'Users'
+});
+
+UserGame.belongsTo(User, { foreignKey: 'userId' });
+UserGame.belongsTo(Game, { foreignKey: 'gameId' });
 
 export default UserGame;

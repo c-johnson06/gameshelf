@@ -1,20 +1,22 @@
 import { DataTypes, Model } from 'sequelize';
+import type { InferAttributes, InferCreationAttributes, CreationOptional } from 'sequelize';
 import sequelize from '../db/config.js';
 
-class Game extends Model{
-    id!: number;
-    name!: string;
-    genre!: string;
-    background_image!: string;
-    platform!: string;
-    releaseDate!: Date;
-    rating!: number;
+class Game extends Model<InferAttributes<Game>, InferCreationAttributes<Game>> {
+    declare id: number;
+    declare name: string;
+    declare genres: CreationOptional<string>;
+    declare backgroundImage: CreationOptional<string>;
+    declare platform: CreationOptional<string>;
+    declare releaseDate: CreationOptional<Date>;
+    declare rating: CreationOptional<number>;
 }
 
 Game.init({
     id: {
         type: DataTypes.INTEGER,
-        primaryKey: true
+        primaryKey: true,
+        allowNull: false
     },
 
     name: {
@@ -55,6 +57,6 @@ Game.init({
     sequelize,
     tableName: 'games',
     timestamps: false
-})
+});
 
 export default Game;
