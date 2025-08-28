@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import { 
     Typography, Box, CircularProgress, Alert, Grid, 
-    Chip, Paper, Link, Rating, Button 
+    Chip, Paper, Link as MuiLink, Rating, Button 
 } from '@mui/material';
 import { 
     Language as LanguageIcon, DeveloperMode as DeveloperModeIcon,
@@ -14,7 +14,7 @@ import { useAuth } from '../context/AuthContext';
 import ReviewForm from '../components/ReviewForm';
 import type { Game } from '../types';
 
-
+// Interfaces for the component's state
 interface GameDetails {
     id: number;
     name: string;
@@ -45,6 +45,7 @@ interface UserGameStatus {
 const GameDetailPage = () => {
     const { gameId } = useParams<{ gameId: string }>();
     const { user, token } = useAuth();
+    const navigate = useNavigate();
     const [details, setDetails] = useState<GameDetails | null>(null);
     const [reviews, setReviews] = useState<Review[]>([]);
     const [averageRating, setAverageRating] = useState<number | null>(null);
@@ -53,6 +54,7 @@ const GameDetailPage = () => {
     const [error, setError] = useState<string | null>(null);
     const [isAdding, setIsAdding] = useState(false);
 
+    // Fetches all game details from the backend.
     const fetchDetails = async () => {
         if (!gameId) return;
         try {
@@ -75,6 +77,7 @@ const GameDetailPage = () => {
         fetchDetails();
     }, [gameId, token]);
 
+    // Handles the submission of a new or updated review.
     const handleReviewSubmit = async (rating: number | null, reviewText: string) => {
         if (!user || !token || !gameId) {
             throw new Error("You must be logged in to submit a review.");
@@ -83,14 +86,17 @@ const GameDetailPage = () => {
             personalRating: rating,
             review: reviewText,
         });
-        fetchDetails(); 
+        await fetchDetails(); // Refresh data after submission
     };
 
+    // Adds the current game to the user's shelf.
     const handleAddToShelf = async () => {
-        if (!user || !token || !details) {
-            setError("You must be logged in to add games.");
+        if (!user || !token) {
+            navigate('/login');
             return;
         }
+        if (!details) return;
+
         setIsAdding(true);
         try {
             const gameData: Game = {
@@ -103,7 +109,7 @@ const GameDetailPage = () => {
                 genres: details.genres,
             };
             await addUserGame(user.id, gameData, token);
-            fetchDetails();
+            await fetchDetails(); // Refresh to show the review form
         } catch (err: any) {
             setError(err.response?.data?.message || "Failed to add game to shelf.");
         } finally {
@@ -120,22 +126,23 @@ const GameDetailPage = () => {
     }
 
     if (!details) {
-        return <Typography>Game not found.</Typography>;
+        return <Typography sx={{textAlign: 'center', mt: 4}}>Game not found.</Typography>;
     }
 
     return (
         <Box>
+            {/* Full-width banner image with a gradient overlay */}
             <Paper elevation={3} sx={{ borderRadius: 4, overflow: 'hidden', mb: 4 }}>
                 <Box
                     sx={{
-                        height: { xs: 250, md: 500 },
+                        height: { xs: 300, md: 500 },
                         position: 'relative',
                         background: `url(${details.background_image}) center center / cover no-repeat`,
                         '&::before': {
                             content: '""',
                             position: 'absolute',
                             top: 0, left: 0, right: 0, bottom: 0,
-                            background: 'linear-gradient(to top, rgba(0,0,0,0.9) 0%, rgba(0,0,0,0) 70%)',
+                            background: 'linear-gradient(to top, rgba(18,18,18,1) 0%, rgba(18,18,18,0) 60%)',
                         }
                     }}
                 >
@@ -150,37 +157,36 @@ const GameDetailPage = () => {
                         <Typography variant="h1" component="h1" sx={{ textShadow: '2px 2px 8px rgba(0,0,0,0.7)' }}>
                             {details.name}
                         </Typography>
-                        <Typography variant="h5" sx={{ opacity: 0.9 }}>
-                            Released: {new Date(details.released).toLocaleDateString()}
-                        </Typography>
                     </Box>
                 </Box>
             </Paper>
 
             <Grid container spacing={4}>
+                {/* Left column for game details */}
                 <Grid item xs={12} md={4}>
                     <Paper sx={{ p: 3, borderRadius: 3, position: 'sticky', top: '88px' }}>
                         <Typography variant="h5" gutterBottom>Details</Typography>
                         <Box sx={{ display: 'flex', alignItems: 'center', mb: 1.5 }}><DateRangeIcon color="action" sx={{ mr: 1.5 }} /><Typography><strong>Released:</strong> {details.released}</Typography></Box>
                         <Box sx={{ display: 'flex', alignItems: 'center', mb: 1.5 }}><DeveloperModeIcon color="action" sx={{ mr: 1.5 }} /><Typography><strong>Developers:</strong> {details.developers.join(', ')}</Typography></Box>
                         <Box sx={{ display: 'flex', alignItems: 'center', mb: 1.5 }}><CategoryIcon color="action" sx={{ mr: 1.5 }} /><Typography><strong>Genres:</strong> {details.genres.join(', ')}</Typography></Box>
-                        <Box sx={{ display: 'flex', alignItems: 'center', mb: 1.5 }}><LanguageIcon color="action" sx={{ mr: 1.5 }} /><Link href={details.website} target="_blank" rel="noopener">Official Website</Link></Box>
-                        <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}><StarIcon color="action" sx={{ mr: 1.5 }} /><Typography><strong>Average Rating:</strong> {details.rating} / 5</Typography></Box>
+                        <Box sx={{ display: 'flex', alignItems: 'center', mb: 1.5 }}><LanguageIcon color="action" sx={{ mr: 1.5 }} /><MuiLink href={details.website} target="_blank" rel="noopener">Official Website</MuiLink></Box>
+                        <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}><StarIcon color="action" sx={{ mr: 1.5 }} /><Typography><strong>RAWG Rating:</strong> {details.rating} / 5</Typography></Box>
                         <Typography variant="h6" sx={{ mt: 2 }}>Platforms</Typography>
                         <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mt: 1 }}>{details.platforms.map(p => <Chip key={p} label={p} size="small" />)}</Box>
                     </Paper>
                 </Grid>
 
+                {/* Right column for description and reviews */}
                 <Grid item xs={12} md={8}>
                     <Paper sx={{ p: 3, borderRadius: 3, mb: 4 }}>
                         <Typography variant="h5" gutterBottom>Description</Typography>
                         <Typography paragraph sx={{ whiteSpace: 'pre-wrap', color: 'text.secondary' }}>{details.description_raw}</Typography>
                     </Paper>
 
+                    {/* Conditional rendering for review form or add to shelf button */}
                     {user && (
                         userGameStatus ? (
                             <ReviewForm
-                                gameId={details.id}
                                 initialRating={userGameStatus.personalRating}
                                 initialReview={userGameStatus.review}
                                 onSubmit={handleReviewSubmit}
@@ -192,13 +198,14 @@ const GameDetailPage = () => {
                                 onClick={handleAddToShelf}
                                 disabled={isAdding}
                                 fullWidth
-                                sx={{ py: 1.5, mb: 4 }}
+                                sx={{ py: 1.5, mb: 4, fontSize: '1.1rem' }}
                             >
                                 {isAdding ? <CircularProgress size={24} color="inherit" /> : 'Add to Shelf to Review'}
                             </Button>
                         )
                     )}
 
+                    {/* Community Reviews Section */}
                     <Paper sx={{ p: 3, borderRadius: 3, mt: 4 }}>
                         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
                              <Typography variant="h5">Community Reviews</Typography>
@@ -221,7 +228,7 @@ const GameDetailPage = () => {
                                 </Paper>
                             ))
                         ) : (
-                            <Typography>No community reviews yet.</Typography>
+                            <Typography>No community reviews yet. Be the first!</Typography>
                         )}
                     </Paper>
                 </Grid>

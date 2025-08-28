@@ -328,16 +328,9 @@ router.get('/users/:userId/games', authenticateToken, async(req: Request, res: R
         if ((req as any).user.userId !== parseInt(userId)) {
             return res.status(403).json({message: 'Access denied.'});
         }
-
-        const user = await User.findByPk(userId, {
-            include: [{
-                model: Game,
-                as: 'Games',
-                through: {
-                    attributes: ['playStatus', 'personalRating', 'review']
-                }
-            }]
-        });
+        
+        // Use the 'withGames' scope to include UserGame details
+        const user = await User.scope('withGames').findByPk(userId);
 
         if(!user){
             return res.status(404).json({message: 'User not found.'});
@@ -363,12 +356,13 @@ router.patch('/users/:userId/games/:gameId', authenticateToken, async(req: Reque
             return res.status(403).json({message: 'Access denied.'});
         }
 
-        const userGame = await UserGame.findOne({where: {userId, gameId}});
+        const userGame = await UserGame.findOne({where: {userId: parseInt(userId), gameId: parseInt(gameId)}});
         if(!userGame){
             return res.status(404).json({message: 'Game not found in your library.'});
         }
 
         if(playStatus) userGame.playStatus = playStatus;
+        // Allow setting rating and review to null/empty
         if(personalRating !== undefined) userGame.personalRating = personalRating;
         if(review !== undefined) userGame.review = review;
 
@@ -392,7 +386,7 @@ router.delete('/users/:userId/games/:gameId', authenticateToken, async(req: Requ
             return res.status(403).json({message: 'Access denied.'});
         }
 
-        const userGame = await UserGame.findOne({where: {userId, gameId}});
+        const userGame = await UserGame.findOne({where: {userId: parseInt(userId), gameId: parseInt(gameId)}});
         if(!userGame){
             return res.status(404).json({message: 'Game not found in your library.'});
         }

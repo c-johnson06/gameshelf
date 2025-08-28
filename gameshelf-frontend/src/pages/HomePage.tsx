@@ -109,7 +109,7 @@ const HomePage = () => {
                       size="large"
                       sx={{
                         backgroundColor: 'white',
-                        color: 'primary.main',
+                        color: 'black',
                         px: 4,
                         py: 1.5,
                         fontSize: '1.1rem',
@@ -263,6 +263,7 @@ const HomePage = () => {
         {/* Stats Section */}
         <Box
           sx={{
+            backgroundColor: 'background.paper',
             boxShadow: '0 12px 40px rgba(0,0,0,0.1)',
             borderRadius: 4,
             p: 6,

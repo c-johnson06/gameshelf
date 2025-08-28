@@ -1,26 +1,23 @@
-import { Box, Typography, Link, Container } from '@mui/material';
+import { Box, Typography, Link as MuiLink, Container } from '@mui/material';
 
 const Footer = () => {
   return (
     <Box
       component="footer"
       sx={{
-        py: 3,
+        py: 4,
         px: 2,
         mt: 'auto',
-        backgroundColor: (theme) =>
-          theme.palette.mode === 'light'
-            ? theme.palette.grey[200]
-            : theme.palette.grey[800],
+        backgroundColor: 'background.paper',
       }}
     >
       <Container maxWidth="lg">
         <Typography variant="body2" color="text.secondary" align="center">
           {'© '}
           {new Date().getFullYear()}{' '}
-          <Link color="inherit" href="https://your-website.com/">
+          <MuiLink color="inherit" href="#">
             GameShelf
-          </Link>
+          </MuiLink>
           {'. All rights reserved.'}
         </Typography>
       </Container>

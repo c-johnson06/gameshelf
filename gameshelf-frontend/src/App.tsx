@@ -4,44 +4,43 @@ import {
   CssBaseline, 
   ThemeProvider, 
   createTheme,
+  Container,
 } from '@mui/material';
 import Header from './components/Header';
 import Footer from './components/Footer';
 import { AuthProvider } from './context/AuthContext';
 import './App.css';
 
+// A professional, modern dark theme for the application.
 const darkTheme = createTheme({
   palette: {
     mode: 'dark',
     primary: {
-      main: '#7e57c2', // A softer purple
-      light: '#b085f5',
-      dark: '#4d2c91',
+      main: '#90caf9', // A lighter, more modern blue
     },
     secondary: {
-      main: '#00bfa5', // A vibrant teal
-      light: '#5df2d6',
-      dark: '#008e76',
+      main: '#f48fb1', // A soft pink for accents
     },
     background: {
-      default: '#121212',
-      paper: '#1e1e1e',
+      default: '#121212', // Standard dark background
+      paper: '#1e1e1e',   // Slightly lighter paper background for cards
     },
     text: {
-      primary: '#ffffff',
+      primary: '#e0e0e0',
       secondary: '#b0bec5',
     },
   },
   typography: {
     fontFamily: '"Inter", "Roboto", "Helvetica", "Arial", sans-serif',
-    h1: { fontWeight: 800, fontSize: '3.5rem', lineHeight: 1.2, letterSpacing: '-0.02em' },
-    h2: { fontWeight: 700, fontSize: '2.5rem', lineHeight: 1.3 },
-    h4: { fontWeight: 700, fontSize: '1.75rem', lineHeight: 1.4 },
+    h1: { fontWeight: 700, fontSize: '3rem', letterSpacing: '-0.015em' },
+    h2: { fontWeight: 700, fontSize: '2.25rem' },
+    h3: { fontWeight: 600, fontSize: '1.75rem' },
+    h4: { fontWeight: 600, fontSize: '1.5rem' },
     h5: { fontWeight: 600, fontSize: '1.25rem' },
-    body1: { fontSize: '1rem', lineHeight: 1.7 },
+    body1: { fontSize: '1rem', lineHeight: 1.6 },
   },
   shape: {
-    borderRadius: 12,
+    borderRadius: 12, // Consistent border radius
   },
   components: {
     MuiButton: {
@@ -50,36 +49,29 @@ const darkTheme = createTheme({
           textTransform: 'none',
           fontWeight: 600,
           borderRadius: 8,
-          padding: '10px 24px',
-          transition: 'all 0.2s ease-in-out',
+          padding: '10px 20px',
+          transition: 'transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out',
+           '&:hover': {
+             transform: 'translateY(-2px)',
+             boxShadow: `0 4px 20px 0 rgba(0,0,0,0.1)`,
+           }
         },
       },
     },
     MuiPaper: {
         styleOverrides: {
             root: {
-                backgroundImage: 'none', // Important for dark mode paper
-                boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1)',
+                backgroundImage: 'none', // Disable gradient backgrounds on paper
             }
         }
     },
     MuiCard: {
       styleOverrides: {
         root: {
-          borderRadius: 16,
-          transition: 'all 0.2s ease-in-out',
+          transition: 'transform 0.3s ease-in-out, box-shadow 0.3s ease-in-out',
           '&:hover': {
-            transform: 'translateY(-4px)',
-            boxShadow: '0 10px 20px rgba(0, 0, 0, 0.2)',
-          },
-        },
-      },
-    },
-    MuiTextField: {
-      styleOverrides: {
-        root: {
-          '& .MuiOutlinedInput-root': {
-            borderRadius: 8,
+            transform: 'translateY(-5px)',
+            boxShadow: '0 8px 25px rgba(0,0,0,0.3)',
           },
         },
       },
@@ -87,7 +79,8 @@ const darkTheme = createTheme({
      MuiAppBar: {
       styleOverrides: {
         root: {
-          background: 'rgba(30, 30, 30, 0.85)',
+          // Semi-transparent app bar for a modern look
+          background: 'rgba(18, 18, 18, 0.8)',
           backdropFilter: 'blur(10px)',
           boxShadow: 'none',
           borderBottom: '1px solid rgba(255, 255, 255, 0.12)',
@@ -111,16 +104,18 @@ function App() {
         >
           <CssBaseline />
           <Header />
+          {/* Main content area that grows to push footer down */}
           <Box 
             component="main" 
             sx={{ 
               flexGrow: 1,
               width: '100%',
-              py: { xs: 2, md: 4 },
             }}
           >
-            {/* The Container has been removed from here to allow pages to control their own width */}
-            <Outlet />
+            {/* Container provides consistent padding and max-width for all pages */}
+            <Container maxWidth="xl" sx={{ py: { xs: 3, md: 5 } }}>
+              <Outlet />
+            </Container>
           </Box>
           <Footer />
         </Box>
@@ -130,3 +125,4 @@ function App() {
 }
 
 export default App;
+

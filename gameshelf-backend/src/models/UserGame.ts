@@ -8,6 +8,7 @@ class UserGame extends Model<InferAttributes<UserGame>, InferCreationAttributes<
     declare userId: ForeignKey<User['id']>;
     declare gameId: ForeignKey<Game['id']>;
     declare playStatus: 'playing' | 'completed' | 'on-hold' | 'dropped' | 'plan-to-play';
+    // Rating can be null if the user hasn't rated it yet.
     declare personalRating: CreationOptional<number | null>;
     declare review: CreationOptional<string | null>;
     declare createdAt: CreationOptional<Date>;
@@ -18,6 +19,7 @@ UserGame.init({
     userId: {
         type: DataTypes.INTEGER,
         allowNull: false,
+        primaryKey: true, // Part of a composite primary key
         references: {
             model: User,
             key: 'id'
@@ -27,6 +29,7 @@ UserGame.init({
     gameId: {
         type: DataTypes.INTEGER,
         allowNull: false,
+        primaryKey: true, // Part of a composite primary key
         references: {
             model: Game,
             key: 'id'
@@ -40,7 +43,7 @@ UserGame.init({
     },
 
     personalRating: {
-        type: DataTypes.FLOAT,
+        type: DataTypes.FLOAT, // Use FLOAT to allow for half-star ratings (e.g., 7.5)
         allowNull: true,
         validate: {
             min: 0,
@@ -86,5 +89,17 @@ Game.belongsToMany(User, {
 
 UserGame.belongsTo(User, { foreignKey: 'userId' });
 UserGame.belongsTo(Game, { foreignKey: 'gameId' });
+
+// Eager load UserGame details when fetching games for a user
+User.addScope('withGames', {
+    include: [{
+        model: Game,
+        as: 'Games',
+        through: {
+            attributes: ['playStatus', 'personalRating', 'review']
+        }
+    }]
+});
+
 
 export default UserGame;

@@ -182,7 +182,7 @@ const Header = () => {
                 variant="contained"
                 sx={{
                   backgroundColor: 'white',
-                  color: 'primary.main',
+                  color: 'black',
                   '&:hover': {
                     backgroundColor: 'rgba(255,255,255,0.9)',
                     transform: 'translateY(-1px)'

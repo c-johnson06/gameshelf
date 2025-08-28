@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { Container, Typography, Box, CircularProgress, Grid, Alert } from '@mui/material';
 import { useAuth } from '../context/AuthContext';
-import { getUserGames } from '../services/api';
+import { getUserGames, addUserGame } from '../services/api';
 import type { Game } from '../types';
 import GameCard from '../components/GameCard';
 
@@ -21,9 +21,12 @@ const ProfilePage = () => {
         setLoading(true);
         setError(null);
         const response = await getUserGames(parseInt(userId), token);
+        // The backend now returns the full game object including UserGame details
         const formattedGames = response.data.map((game: any) => ({
           ...game,
           background_image: game.backgroundImage,
+          // The through object contains the UserGame data
+          UserGame: game.UserGame, 
         }));
         setGames(formattedGames);
       } catch (err) {
@@ -37,10 +40,16 @@ const ProfilePage = () => {
     fetchGames();
   }, [userId, token]);
 
-  const handleAddToShelf = (game: Game) => {
-    // This function is passed to GameCard but is primarily used on the search page.
-    // In a future update, this could be used for a "move to another list" feature.
-    console.log('Action triggered for:', game.name);
+  // This function is a placeholder on this page but required by GameCard
+  const handleAddToShelf = async (game: Game) => {
+    if (!user || !token) return;
+    try {
+      await addUserGame(user.id, game, token);
+      // Optionally, you could add a success message here
+    } catch (err) {
+      // Optionally, handle error message
+      console.error("Failed to add game", err);
+    }
   };
   
   if (loading) {
