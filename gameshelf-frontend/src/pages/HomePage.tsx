@@ -6,9 +6,7 @@ import {
   Grid,
   Card,
   CardContent,
-  CardMedia,
   Fade,
-  useTheme
 } from '@mui/material';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
@@ -16,12 +14,10 @@ import {
   Search as SearchIcon,
   LibraryBooks as LibraryIcon,
   Star as StarIcon,
-  TrendingUp as TrendingIcon
 } from '@mui/icons-material';
 
 const HomePage = () => {
   const { user } = useAuth();
-  const theme = useTheme();
 
   const features = [
     {
@@ -267,7 +263,7 @@ const HomePage = () => {
         {/* Stats Section */}
         <Box
           sx={{
-            background: 'linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%)',
+            boxShadow: '0 12px 40px rgba(0,0,0,0.1)',
             borderRadius: 4,
             p: 6,
             textAlign: 'center'

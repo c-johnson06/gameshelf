@@ -12,10 +12,15 @@ const GamesPage = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [hasSearched, setHasSearched] = useState(false);
 
   const handleSearch = async (event: React.FormEvent) => {
     event.preventDefault();
-    if (!query) return;
+    setHasSearched(true);
+    if (!query) {
+        setGames([]);
+        return;
+    };
 
     try {
       setLoading(true);
@@ -42,45 +47,55 @@ const GamesPage = () => {
     try {
         await addUserGame(user.id, gameToAdd, token);
         setSuccessMessage(`'${gameToAdd.name}' was successfully added to your shelf!`);
-        // clear the message after a few seconds
         setTimeout(() => setSuccessMessage(null), 5000);
-    } catch (err) {
-        setError(`Failed to add '${gameToAdd.name}'. You may already have it on your shelf.`);
+    } catch (err: any) {
+        setError(err.response?.data?.message || `Failed to add '${gameToAdd.name}'.`);
         console.error(err);
     }
   };
 
   return (
-    <Container maxWidth="lg">
-      <Box sx={{ my: 4 }}>
-        <Typography variant="h4" component="h1" gutterBottom>
-          Search for Games
-        </Typography>
-        <Box component="form" onSubmit={handleSearch} sx={{ display: 'flex', mb: 4 }}>
-          <TextField
+    <Container maxWidth="xl">
+        <Box sx={{ mb: 4, textAlign: 'center' }}>
+            <Typography variant="h2" component="h1" gutterBottom>
+            Search for Games
+            </Typography>
+            <Typography variant="h5" color="text.secondary">
+            Discover your next adventure.
+            </Typography>
+        </Box>
+        <Box component="form" onSubmit={handleSearch} sx={{ display: 'flex', mb: 4, maxWidth: '700px', mx: 'auto' }}>
+            <TextField
             fullWidth
             variant="outlined"
             label="Search for a game..."
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-          />
-          <Button type="submit" variant="contained" sx={{ ml: 2, whiteSpace: 'nowrap' }}>
+            />
+            <Button type="submit" variant="contained" sx={{ ml: 2, whiteSpace: 'nowrap' }}>
             Search
-          </Button>
+            </Button>
         </Box>
 
         {loading && <CircularProgress sx={{ display: 'block', margin: 'auto' }} />}
-        {error && <Alert severity="error" sx={{ my: 2 }}>{error}</Alert>}
-        {successMessage && <Alert severity="success" sx={{ my: 2 }}>{successMessage}</Alert>}
+        {error && <Alert severity="error" sx={{ my: 2, maxWidth: '700px', mx: 'auto' }}>{error}</Alert>}
+        {successMessage && <Alert severity="success" sx={{ my: 2, maxWidth: '700px', mx: 'auto' }}>{successMessage}</Alert>}
         
         <Grid container spacing={4}>
-          {games.map((game) => (
-            <Grid key={game.id} xs={12} sm={6} md={4} lg={3}>
-              <GameCard game={game} onAddToShelf={handleAddToShelf} />
-            </Grid>
-          ))}
+            {games.length > 0 ? (
+                games.map((game) => (
+                    <Grid item key={game.id} xs={12} sm={6} md={4} lg={3} xl={2.4}>
+                        <GameCard game={game} onAddToShelf={handleAddToShelf} />
+                    </Grid>
+                ))
+            ) : (
+                hasSearched && !loading && (
+                    <Grid item xs={12}>
+                        <Typography sx={{textAlign: 'center', mt: 4}}>No games found for your search.</Typography>
+                    </Grid>
+                )
+            )}
         </Grid>
-      </Box>
     </Container>
   );
 };

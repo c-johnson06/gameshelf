@@ -24,16 +24,23 @@ export const searchGames = (query: string) => {
 
 export const getUserGames = (userId: number, token: string) => {
   return apiClient.get(`/users/${userId}/games`, {
-    headers: {
-      'Authorization': `Bearer ${token}` 
-    }
+    headers: { 'Authorization': `Bearer ${token}` }
   });
 };
 
 export const addUserGame = (userId: number, gameData: Game, token: string) => {
   return apiClient.post(`/users/${userId}/games`, gameData, {
-    headers: {
-      'Authorization': `Bearer ${token}`
-    }
+    headers: { 'Authorization': `Bearer ${token}` }
   });
+};
+
+export const getGameDetails = (gameId: number, token: string | null) => {
+  const headers = token ? { 'Authorization': `Bearer ${token}` } : {};
+  return apiClient.get(`/games/${gameId}`, { headers });
+};
+
+export const updateUserGameReview = (userId: number, gameId: number, token: string, data: { personalRating?: number | null, review?: string }) => {
+    return apiClient.patch(`/users/${userId}/games/${gameId}`, data, {
+        headers: { 'Authorization': `Bearer ${token}` }
+    });
 };

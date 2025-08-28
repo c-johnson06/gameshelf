@@ -30,6 +30,24 @@ const authenticateToken = (req: Request, res: Response, next: any) => {
     });
 };
 
+// Optional Middleware to add user to request if token is valid
+const addUserIfAuthenticated = (req: Request, res: Response, next: any) => {
+    const authHeader = req.headers['authorization'];
+    const token = authHeader && authHeader.split(' ')[1];
+
+    if (token) {
+        jwt.verify(token, JWT_SECRET, (err: any, user: any) => {
+            if (!err) {
+                (req as any).user = user;
+            }
+            next();
+        });
+    } else {
+        next();
+    }
+};
+
+
 router.post('/register', async(req: Request, res: Response) => {
     try{
         const { email, username, password} = req.body;
@@ -92,10 +110,6 @@ router.post('/login', async(req: Request, res: Response) => {
             return res.status(401).json({message: 'Invalid username or password.'});
         }
 
-        // Debug logging
-        console.log('User found:', { id: user.id, username: user.username });
-        console.log('Password hash exists:', !!user.passwordHash);
-
         if (!user.passwordHash) {
             console.error('Password hash is missing for user:', user.username);
             return res.status(401).json({message: 'Invalid username or password.'});
@@ -106,11 +120,10 @@ router.post('/login', async(req: Request, res: Response) => {
             return res.status(401).json({message: 'Invalid username or password.'});
         }
 
-        // Generate JWT token
         const token = jwt.sign(
             { userId: user.id, username: user.username },
             JWT_SECRET,
-            { expiresIn: '7d' } // Token expires in 7 days
+            { expiresIn: '7d' }
         );
 
         res.status(200).json({
@@ -126,7 +139,6 @@ router.post('/login', async(req: Request, res: Response) => {
     }
 });
 
-// Verify token endpoint
 router.get('/verify', authenticateToken, async(req: Request, res: Response) => {
     try {
         const user = await User.findByPk((req as any).user.userId, {
@@ -161,11 +173,7 @@ router.get('/search', async(req: Request, res: Response) => {
 
         const apiKey = process.env.RAWG_API_KEY;
         const response = await axios.get(`https://api.rawg.io/api/games`, {
-            params: {
-                key: apiKey,
-                search: query,
-                page_size: 12
-            }
+            params: { key: apiKey, search: query, page_size: 12 }
         });
 
         const games = response.data.results.map((game: any) => ({
@@ -186,19 +194,89 @@ router.get('/search', async(req: Request, res: Response) => {
     }
 });
 
+router.get('/games/:gameId', addUserIfAuthenticated, async (req: Request, res: Response) => {
+    try {
+        const { gameId } = req.params;
+        const apiKey = process.env.RAWG_API_KEY;
+
+        const rawgResponse = await axios.get(`https://api.rawg.io/api/games/${gameId}`, {
+            params: { key: apiKey }
+        });
+        const gameDetails = rawgResponse.data;
+
+        if (!gameId || typeof gameId !== 'string') {
+            return res.status(400).json({ message: 'Invalid game ID.' });
+        }
+        const userGames = await UserGame.findAll({
+            where: { gameId: parseInt(gameId) },
+            include: [{ model: User, attributes: ['id', 'username'] }]
+        });
+
+        const reviews = userGames
+            .filter(ug => ug.review)
+            .map(ug => ({
+                userId: (ug as any).User.id,
+                username: (ug as any).User.username,
+                rating: ug.personalRating,
+                review: ug.review,
+                updatedAt: ug.updatedAt
+            }));
+
+        const ratings = userGames.map(ug => ug.personalRating).filter(r => r !== null) as number[];
+        const averageRating = ratings.length > 0 ? ratings.reduce((acc, cur) => acc + cur, 0) / ratings.length : null;
+
+        let userGameStatus: {
+            playStatus: string;
+            personalRating: number | null;
+            review: string | null;
+        } | null = null;
+        
+        if ((req as any).user) {
+            const userId = (req as any).user.userId;
+            const userGame = await UserGame.findOne({ where: { userId, gameId: parseInt(gameId) }});
+            if (userGame) {
+                userGameStatus = {
+                    playStatus: userGame.playStatus,
+                    personalRating: userGame.personalRating,
+                    review: userGame.review
+                };
+            }
+        }
+
+        res.status(200).json({
+            details: {
+                id: gameDetails.id,
+                name: gameDetails.name,
+                description_raw: gameDetails.description_raw,
+                released: gameDetails.released,
+                background_image: gameDetails.background_image,
+                website: gameDetails.website,
+                rating: gameDetails.rating,
+                platforms: gameDetails.platforms?.map((p: any) => p.platform.name) || [],
+                genres: gameDetails.genres?.map((g: any) => g.name) || [],
+                developers: gameDetails.developers?.map((d: any) => d.name) || [],
+            },
+            reviews,
+            averageRating,
+            userGameStatus
+        });
+
+    } catch (error) {
+        console.error('Error fetching game details:', error);
+        res.status(500).json({ message: 'Internal server error.' });
+    }
+});
+
 router.post('/users/:userId/games', authenticateToken, async(req: Request, res: Response) => {
     try{
         const { userId } = req.params;
         const gameData = req.body;
 
-        // Validate userId parameter
         if (!userId || isNaN(parseInt(userId))) {
             return res.status(400).json({message: 'Invalid user ID.'});
         }
-
-        // Check if the authenticated user matches the requested userId
         if ((req as any).user.userId !== parseInt(userId)) {
-            return res.status(403).json({message: 'Access denied. You can only modify your own library.'});
+            return res.status(403).json({message: 'Access denied.'});
         }
 
         const user = await User.findByPk(userId);
@@ -206,14 +284,9 @@ router.post('/users/:userId/games', authenticateToken, async(req: Request, res: 
             return res.status(404).json({message: 'User not found.'});
         }
 
-        // Check if game already exists in user's library
         const existingUserGame = await UserGame.findOne({
-            where: {
-                userId: parseInt(userId),
-                gameId: gameData.id
-            }
+            where: { userId: parseInt(userId), gameId: gameData.id }
         });
-
         if (existingUserGame) {
             return res.status(409).json({message: 'Game already in your library.'});
         }
@@ -249,19 +322,17 @@ router.get('/users/:userId/games', authenticateToken, async(req: Request, res: R
     try{
         const { userId } = req.params;
 
-        // Validate userId parameter
         if (!userId || isNaN(parseInt(userId))) {
             return res.status(400).json({message: 'Invalid user ID.'});
         }
-
-        // Check if the authenticated user matches the requested userId
         if ((req as any).user.userId !== parseInt(userId)) {
-            return res.status(403).json({message: 'Access denied. You can only view your own library.'});
+            return res.status(403).json({message: 'Access denied.'});
         }
 
         const user = await User.findByPk(userId, {
             include: [{
                 model: Game,
+                as: 'Games',
                 through: {
                     attributes: ['playStatus', 'personalRating', 'review']
                 }
@@ -285,17 +356,11 @@ router.patch('/users/:userId/games/:gameId', authenticateToken, async(req: Reque
         const { userId, gameId } = req.params;
         const { playStatus, personalRating, review } = req.body;
 
-        // Validate parameters
-        if (!userId || isNaN(parseInt(userId))) {
-            return res.status(400).json({message: 'Invalid user ID.'});
+        if (!userId || isNaN(parseInt(userId)) || !gameId || isNaN(parseInt(gameId))) {
+            return res.status(400).json({message: 'Invalid user or game ID.'});
         }
-        if (!gameId || isNaN(parseInt(gameId))) {
-            return res.status(400).json({message: 'Invalid game ID.'});
-        }
-
-        // Check if the authenticated user matches the requested userId
         if ((req as any).user.userId !== parseInt(userId)) {
-            return res.status(403).json({message: 'Access denied. You can only modify your own library.'});
+            return res.status(403).json({message: 'Access denied.'});
         }
 
         const userGame = await UserGame.findOne({where: {userId, gameId}});
@@ -303,18 +368,12 @@ router.patch('/users/:userId/games/:gameId', authenticateToken, async(req: Reque
             return res.status(404).json({message: 'Game not found in your library.'});
         }
 
-        if(playStatus){
-            userGame.playStatus = playStatus;
-        }
-        if(personalRating !== undefined){
-            userGame.personalRating = personalRating;
-        }
-        if(review !== undefined){
-            userGame.review = review;
-        }
+        if(playStatus) userGame.playStatus = playStatus;
+        if(personalRating !== undefined) userGame.personalRating = personalRating;
+        if(review !== undefined) userGame.review = review;
 
         await userGame.save();
-        res.status(200).json({message: 'Game updated successfully.'});
+        res.status(200).json({message: 'Game updated successfully.', userGame });
 
     } catch (error) {
         console.error('Error updating user game:', error);
@@ -326,17 +385,11 @@ router.delete('/users/:userId/games/:gameId', authenticateToken, async(req: Requ
     try{
         const { userId, gameId } = req.params;
 
-        // Validate parameters
-        if (!userId || isNaN(parseInt(userId))) {
-            return res.status(400).json({message: 'Invalid user ID.'});
+        if (!userId || isNaN(parseInt(userId)) || !gameId || isNaN(parseInt(gameId))) {
+            return res.status(400).json({message: 'Invalid user or game ID.'});
         }
-        if (!gameId || isNaN(parseInt(gameId))) {
-            return res.status(400).json({message: 'Invalid game ID.'});
-        }
-
-        // Check if the authenticated user matches the requested userId
         if ((req as any).user.userId !== parseInt(userId)) {
-            return res.status(403).json({message: 'Access denied. You can only modify your own library.'});
+            return res.status(403).json({message: 'Access denied.'});
         }
 
         const userGame = await UserGame.findOne({where: {userId, gameId}});

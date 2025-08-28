@@ -1,4 +1,3 @@
-// frontend/src/pages/ProfilePage.tsx
 import { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { Container, Typography, Box, CircularProgress, Grid, Alert } from '@mui/material';
@@ -39,7 +38,9 @@ const ProfilePage = () => {
   }, [userId, token]);
 
   const handleAddToShelf = (game: Game) => {
-    console.log('Adding to shelf (from profile):', game.name);
+    // This function is passed to GameCard but is primarily used on the search page.
+    // In a future update, this could be used for a "move to another list" feature.
+    console.log('Action triggered for:', game.name);
   };
   
   if (loading) {
@@ -51,24 +52,27 @@ const ProfilePage = () => {
   }
 
   return (
-    <Container maxWidth="lg">
-      <Box sx={{ my: 4 }}>
-        <Typography variant="h4" component="h1" gutterBottom>
+    <Container maxWidth="xl">
+      <Box sx={{ mb: 4, textAlign: 'center' }}>
+        <Typography variant="h2" component="h1" gutterBottom>
           {user?.username}'s Shelf
         </Typography>
-        
-        {games.length === 0 ? (
-          <Typography>No games on your shelf yet. Go search for some!</Typography>
-        ) : (
-          <Grid container spacing={4}>
-            {games.map((game) => (
-              <Grid key={game.id} xs={12} sm={6} md={4} lg={3}>
-                <GameCard game={game} onAddToShelf={handleAddToShelf} />
-              </Grid>
-            ))}
-          </Grid>
-        )}
+        <Typography variant="h5" color="text.secondary">
+          Your personal game collection.
+        </Typography>
       </Box>
+      
+      {games.length === 0 ? (
+        <Typography sx={{textAlign: 'center'}}>No games on your shelf yet. Go search for some!</Typography>
+      ) : (
+        <Grid container spacing={4}>
+          {games.map((game) => (
+            <Grid item key={game.id} xs={12} sm={6} md={4} lg={3} xl={2.4}>
+              <GameCard game={game} onAddToShelf={handleAddToShelf} />
+            </Grid>
+          ))}
+        </Grid>
+      )}
     </Container>
   );
 };
