@@ -108,7 +108,7 @@ const GameDetailPage = () => {
                 platforms: details.platforms,
                 genres: details.genres,
             };
-            await addUserGame(user.id, gameData, token);
+            await addUserGame(user.id, gameData, token, 'plan-to-play');
             await fetchDetails(); // Refresh to show the review form
         } catch (err: any) {
             setError(err.response?.data?.message || "Failed to add game to shelf.");

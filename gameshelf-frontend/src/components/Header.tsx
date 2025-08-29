@@ -18,7 +18,7 @@ import {
   Home as HomeIcon,
   Search as SearchIcon,
   Person as PersonIcon,
-  Menu as MenuIcon
+  Bookmarks as BookmarksIcon
 } from '@mui/icons-material';
 
 const Header = () => {
@@ -109,6 +109,20 @@ const Header = () => {
               }}
             >
               Search Games
+            </Button>
+            <Button
+              component={Link}
+              to={user ? `/profile/${user.id}` : "/login"}
+              color="inherit"
+              startIcon={<BookmarksIcon />}
+              sx={{
+                '&:hover': {
+                  backgroundColor: 'rgba(255,255,255,0.1)',
+                  transform: 'translateY(-1px)'
+                }
+              }}
+            >
+              Library
             </Button>
           </Box>
         )}
@@ -221,6 +235,15 @@ const Header = () => {
             startIcon={<SearchIcon />}
           >
             Search
+          </Button>
+          <Button
+            component={Link}
+            to={user ? `/profile/${user.id}` : "/login"}
+            color="inherit"
+            size="small"
+            startIcon={<BookmarksIcon />}
+          >
+            Library
           </Button>
         </Box>
       )}

@@ -7,27 +7,29 @@ const RegisterPage = () => {
   const [email, setEmail] = useState('');
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState('');
   const { register } = useAuth(); // <-- Get the register function from context
+
+  const handleRegister = async (formData: { email: string; username: string; password: string }) => {
+    try {
+      await register(formData);
+    } catch (err: any) {
+      setError(err.response?.data?.error || 'Registration failed.');
+    }
+  };
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
-    setError(null);
+    setError('');
 
     if (!email || !username || !password) {
       setError('All fields are required.');
       return;
     }
 
-    try {
-      await register({ email, username, password });
-    } catch (err) {
-      setError('Failed to register. Username or email may be taken.');
-      console.error(err);
-    }
+    await handleRegister({ email, username, password });
   };
-  
-  // ... rest of the component is the same
+
   return (
     <Container maxWidth="xs">
       <Box
@@ -77,7 +79,11 @@ const RegisterPage = () => {
             value={password}
             onChange={(e) => setPassword(e.target.value)}
           />
-          {error && <Alert severity="error">{error}</Alert>}
+          {error && (
+            <Typography color="error" sx={{ mb: 2 }}>
+              {error}
+            </Typography>
+          )}
           <Button
             type="submit"
             fullWidth

@@ -28,8 +28,8 @@ export const getUserGames = (userId: number, token: string) => {
   });
 };
 
-export const addUserGame = (userId: number, gameData: Game, token: string) => {
-  return apiClient.post(`/users/${userId}/games`, gameData, {
+export const addUserGame = (userId: number, gameData: Game, token: string, playStatus: 'plan-to-play' | 'completed') => {
+  return apiClient.post(`/users/${userId}/games`, { ...gameData, playStatus }, {
     headers: { 'Authorization': `Bearer ${token}` }
   });
 };
@@ -43,4 +43,10 @@ export const updateUserGameReview = (userId: number, gameId: number, token: stri
     return apiClient.patch(`/users/${userId}/games/${gameId}`, data, {
         headers: { 'Authorization': `Bearer ${token}` }
     });
+};
+
+export const updateUserGame = (userId: number, gameId: number, token: string, data: { playStatus?: string, personalRating?: number | null }) => {
+  return apiClient.patch(`/users/${userId}/games/${gameId}`, data, {
+      headers: { 'Authorization': `Bearer ${token}` }
+  });
 };

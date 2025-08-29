@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { Container, Typography, Box, CircularProgress, Grid, Alert } from '@mui/material';
 import { useAuth } from '../context/AuthContext';
-import { getUserGames, addUserGame } from '../services/api';
+import { getUserGames, addUserGame, updateUserGame } from '../services/api';
 import type { Game } from '../types';
 import GameCard from '../components/GameCard';
 
@@ -44,11 +44,29 @@ const ProfilePage = () => {
   const handleAddToShelf = async (game: Game) => {
     if (!user || !token) return;
     try {
-      await addUserGame(user.id, game, token);
+      await addUserGame(user.id, game, token, 'plan-to-play');
       // Optionally, you could add a success message here
     } catch (err) {
       // Optionally, handle error message
       console.error("Failed to add game", err);
+    }
+  };
+
+  const handleUpdateGame = async (gameId: number, playStatus: string, personalRating: number | null) => {
+    if (!user || !token) return;
+    try {
+      await updateUserGame(user.id, gameId, token, { playStatus, personalRating });
+      // Optionally, refresh games from backend to get updated UserGame info
+      const response = await getUserGames(parseInt(userId!), token);
+      const formattedGames = response.data.map((game: any) => ({
+        ...game,
+        background_image: game.backgroundImage,
+        UserGame: game.UserGame,
+      }));
+      setGames(formattedGames);
+    } catch (err) {
+      setError('Failed to update game status/rating.');
+      console.error(err);
     }
   };
   
@@ -76,8 +94,13 @@ const ProfilePage = () => {
       ) : (
         <Grid container spacing={4}>
           {games.map((game) => (
-            <Grid item key={game.id} xs={12} sm={6} md={4} lg={3} xl={2.4}>
-              <GameCard game={game} onAddToShelf={handleAddToShelf} />
+            <Grid item key={game.id} xs={12} sm={6} md={4}>
+              <GameCard
+                game={game}
+                onAddToShelf={handleAddToShelf}
+                onUpdateGame={handleUpdateGame}
+                isInShelf={true}
+              />
             </Grid>
           ))}
         </Grid>

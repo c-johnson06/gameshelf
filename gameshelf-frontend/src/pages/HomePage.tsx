@@ -151,7 +151,7 @@ const HomePage = () => {
                       size="large"
                       sx={{
                         backgroundColor: 'white',
-                        color: 'primary.main',
+                        color: 'black',
                         px: 4,
                         py: 1.5,
                         fontSize: '1.1rem'

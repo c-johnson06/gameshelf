@@ -4,6 +4,10 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 import sequelize from './db/config.js';
 import apiRouter from './routes.js';
+import './models/User.js';
+import './models/Game.js';
+import './models/UserGame.js';
+
 
 dotenv.config();
 
@@ -23,7 +27,9 @@ const startServer = async() => {
         await sequelize.authenticate();
         console.log('Database connection has been established successfully.');
 
-        await sequelize.sync({alter: true});
+        // Associations are now defined in the model files (e.g., UserGame.ts)
+        // Using sync() without alter:true to avoid SQLite constraint issues in development
+        await sequelize.sync();
         console.log('All models were synchronized successfully.');
 
         app.listen(PORT, () => {

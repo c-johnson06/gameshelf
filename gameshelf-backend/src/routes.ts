@@ -6,6 +6,7 @@ import User from './models/User.js';
 import Game from './models/Game.js';
 import UserGame from './models/UserGame.js';
 import axios from 'axios';
+import { Op } from 'sequelize';
 
 const router = Router();
 
@@ -163,7 +164,7 @@ router.get('/verify', authenticateToken, async(req: Request, res: Response) => {
     }
 });
 
-router.get('/search', async(req: Request, res: Response) => {
+router.get('/search', addUserIfAuthenticated, async(req: Request, res: Response) => {
     try{
         const { query } = req.query;
 
@@ -176,7 +177,7 @@ router.get('/search', async(req: Request, res: Response) => {
             params: { key: apiKey, search: query, page_size: 12 }
         });
 
-        const games = response.data.results.map((game: any) => ({
+        let games = response.data.results.map((game: any) => ({
             id: game.id,
             name: game.name,
             released: game.released,
@@ -185,6 +186,21 @@ router.get('/search', async(req: Request, res: Response) => {
             platforms: game.platforms ? game.platforms.map((p: any) => p.platform.name) : [],
             genres: game.genres ? game.genres.map((g: any) => g.name) : []
         }));
+
+        if ((req as any).user && games.length > 0) {
+            const gameIds = games.map((g: any) => g.id);
+            const userGames = await UserGame.findAll({
+                where: {
+                    userId: (req as any).user.userId,
+                    gameId: { [Op.in]: gameIds }
+                }
+            });
+            const userGamesMap = new Map(userGames.map(ug => [ug.gameId, ug]));
+            games = games.map((game: any) => ({
+                ...game,
+                UserGame: userGamesMap.get(game.id) || null
+            }));
+        }
 
         res.status(200).json({games});
 
@@ -307,7 +323,7 @@ router.post('/users/:userId/games', authenticateToken, async(req: Request, res: 
         await UserGame.create({
             userId: parseInt(userId),
             gameId: game.id,
-            playStatus: 'plan-to-play'
+            playStatus: gameData.playStatus || 'plan-to-play'
         });
 
         res.status(201).json({message: 'Game added to your library successfully.'});
@@ -329,14 +345,21 @@ router.get('/users/:userId/games', authenticateToken, async(req: Request, res: R
             return res.status(403).json({message: 'Access denied.'});
         }
         
-        // Use the 'withGames' scope to include UserGame details
-        const user = await User.scope('withGames').findByPk(userId);
+        const userWithGames = await User.findByPk(userId, {
+            include: [{
+                model: Game,
+                as: 'Games',
+                through: {
+                    attributes: ['playStatus', 'personalRating', 'review']
+                }
+            }]
+        });
 
-        if(!user){
+        if(!userWithGames){
             return res.status(404).json({message: 'User not found.'});
         }
 
-        res.status(200).json((user as any).Games || []);
+        res.status(200).json((userWithGames as any).Games || []);
 
     } catch (error) {
         console.error('Error fetching user games:', error);
@@ -362,7 +385,6 @@ router.patch('/users/:userId/games/:gameId', authenticateToken, async(req: Reque
         }
 
         if(playStatus) userGame.playStatus = playStatus;
-        // Allow setting rating and review to null/empty
         if(personalRating !== undefined) userGame.personalRating = personalRating;
         if(review !== undefined) userGame.review = review;
 

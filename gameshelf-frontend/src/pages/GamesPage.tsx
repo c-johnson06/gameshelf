@@ -45,7 +45,7 @@ const GamesPage = () => {
     }
 
     try {
-        await addUserGame(user.id, gameToAdd, token);
+        await addUserGame(user.id, gameToAdd, token, 'plan-to-play');
         setSuccessMessage(`'${gameToAdd.name}' was successfully added to your shelf!`);
         setTimeout(() => setSuccessMessage(null), 5000);
     } catch (err: any) {
@@ -84,8 +84,13 @@ const GamesPage = () => {
         <Grid container spacing={4}>
             {games.length > 0 ? (
                 games.map((game) => (
-                    <Grid item key={game.id} xs={12} sm={6} md={4} lg={3} xl={2.4}>
-                        <GameCard game={game} onAddToShelf={handleAddToShelf} />
+                    <Grid item key={game.id} xs={12} sm={6} md={4}>
+                        <GameCard
+                            game={game}
+                            onAddToShelf={handleAddToShelf}
+                            onUpdateGame={() => {}}
+                            isInShelf={false}
+                        />
                     </Grid>
                 ))
             ) : (

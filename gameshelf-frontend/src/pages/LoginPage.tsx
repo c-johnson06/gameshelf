@@ -45,11 +45,11 @@ const LoginPage = () => {
   return (
     <Box
       sx={{
-        minHeight: 'calc(100vh - 200px)',
+        minHeight: '100vh',
         display: 'flex',
         alignItems: 'center',
-        background: 'linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%)',
-        py: 4
+        justifyContent: 'center',
+        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
       }}
     >
       <Container maxWidth="sm">
@@ -177,7 +177,7 @@ const LoginPage = () => {
             textAlign: 'center'
           }}
         >
-          <Typography variant="body2" color="text.secondary">
+          <Typography variant="body2" color="black">
             <strong>Demo Account:</strong> Try creating a new account or use existing credentials
           </Typography>
         </Box>
