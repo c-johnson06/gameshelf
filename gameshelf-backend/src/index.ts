@@ -27,8 +27,6 @@ const startServer = async() => {
         await sequelize.authenticate();
         console.log('Database connection has been established successfully.');
 
-        // Associations are now defined in the model files (e.g., UserGame.ts)
-        // Using sync() without alter:true to avoid SQLite constraint issues in development
         await sequelize.sync();
         console.log('All models were synchronized successfully.');
 

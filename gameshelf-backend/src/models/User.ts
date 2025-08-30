@@ -9,6 +9,9 @@ class User extends Model<InferAttributes<User>, InferCreationAttributes<User>> {
     declare passwordHash: string;
     declare createdAt: CreationOptional<Date>;
     declare updatedAt: CreationOptional<Date>;
+    declare isEmailVerified: CreationOptional<boolean>;
+    declare emailVerificationToken: CreationOptional<string | null>;
+    declare emailVerificationExpires: CreationOptional<Date | null>;
 }
 
 User.init({
@@ -49,7 +52,23 @@ User.init({
     updatedAt: {
         type: DataTypes.DATE,
         allowNull: false
-    }
+    },
+
+    isEmailVerified: {
+        type: DataTypes.BOOLEAN,
+        allowNull: false,
+        defaultValue: false
+    },
+
+    emailVerificationToken: {
+        type: DataTypes.STRING,
+        allowNull: true
+    },
+
+    emailVerificationExpires: {
+        type: DataTypes.DATE,
+        allowNull: true
+    },
 },
 {
     sequelize,

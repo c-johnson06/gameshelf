@@ -7,6 +7,8 @@ import Game from './models/Game.js';
 import UserGame from './models/UserGame.js';
 import axios from 'axios';
 import { Op } from 'sequelize';
+import { sendVerificationEmail, generateVerificationToken } from './services/emailService.js';
+import { validateUserRegistration, validateUserLogin } from './middleware/validation.js';
 
 const router = Router();
 
@@ -547,6 +549,290 @@ router.delete('/users/:userId/games/:gameId/review', authenticateToken, async (r
     } catch (error) {
         console.error('Error deleting user review:', error);
         res.status(500).json({ message: 'Internal server error.' });
+    }
+});
+
+router.delete('/users/:userId/games/:gameId/review', authenticateToken, async(req: Request, res: Response) => {
+    try {
+        const { userId, gameId } = req.params;
+
+        if (!userId || isNaN(parseInt(userId)) || !gameId || isNaN(parseInt(gameId))) {
+            return res.status(400).json({ message: 'Invalid user or game ID.' });
+        }
+        
+        if ((req as any).user.userId !== parseInt(userId)) {
+            return res.status(403).json({ message: 'Access denied.' });
+        }
+
+        const userGame = await UserGame.findOne({
+            where: { userId: parseInt(userId), gameId: parseInt(gameId) }
+        });
+
+        if (!userGame) {
+            return res.status(404).json({ message: 'Game not found in your library.' });
+        }
+
+        userGame.personalRating = null;
+        userGame.review = null;
+        await userGame.save();
+
+        res.status(200).json({ 
+            message: 'Review deleted successfully.',
+            userGame 
+        });
+
+    } catch (error) {
+        console.error('Error deleting user review:', error);
+        res.status(500).json({ message: 'Internal server error.' });
+    }
+});
+
+router.post('/register', validateUserRegistration, async(req: Request, res: Response) => {
+    try {
+        const { email, username, password } = req.body;
+
+        // Check if user already exists
+        const existingUser = await User.findOne({ where: { username } });
+        if (existingUser) {
+            return res.status(409).json({ 
+                success: false,
+                message: 'Username already taken.' 
+            });
+        }
+
+        const existingEmail = await User.findOne({ where: { email } });
+        if (existingEmail) {
+            return res.status(409).json({ 
+                success: false,
+                message: 'Email already in use.' 
+            });
+        }
+
+        // Hash password
+        const salt = await bcrypt.genSalt(12);
+        const passwordHash = await bcrypt.hash(password, salt);
+
+        // Generate verification token
+        const verificationToken = generateVerificationToken();
+        const verificationExpires = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
+
+        // Create user (unverified)
+        const newUser = await User.create({
+            email,
+            username,
+            passwordHash,
+            isEmailVerified: false,
+            emailVerificationToken: verificationToken,
+            emailVerificationExpires: verificationExpires
+        });
+
+        // Send verification email
+        try {
+            await sendVerificationEmail(email, username, verificationToken);
+        } catch (emailError) {
+            console.error('Failed to send verification email:', emailError);
+            // Don't fail registration if email fails, just log it
+        }
+
+        res.status(201).json({
+            success: true,
+            message: 'Registration successful! Please check your email to verify your account.',
+            data: {
+                userId: newUser.id,
+                username: newUser.username,
+                email: newUser.email,
+                isEmailVerified: false
+            }
+        });
+
+    } catch (error) {
+        console.error('Error during registration:', error);
+        res.status(500).json({ 
+            success: false,
+            message: 'Internal server error.' 
+        });
+    }
+});
+
+// Email verification route
+router.get('/verify-email/:token', async(req: Request, res: Response) => {
+    try {
+        const { token } = req.params;
+
+        if (!token) {
+            return res.status(400).json({
+                success: false,
+                message: 'Verification token is required.'
+            });
+        }
+
+        // Find user with this token that hasn't expired
+        const user = await User.findOne({
+            where: {
+                emailVerificationToken: token,
+                emailVerificationExpires: {
+                    [Op.gt]: new Date() // Token hasn't expired
+                }
+            }
+        });
+
+        if (!user) {
+            return res.status(400).json({
+                success: false,
+                message: 'Invalid or expired verification token.'
+            });
+        }
+
+        // Mark email as verified
+        user.isEmailVerified = true;
+        user.emailVerificationToken = null;
+        user.emailVerificationExpires = null;
+        await user.save();
+
+        res.status(200).json({
+            success: true,
+            message: 'Email verified successfully! You can now log in.',
+            data: {
+                userId: user.id,
+                username: user.username,
+                isEmailVerified: true
+            }
+        });
+
+    } catch (error) {
+        console.error('Error during email verification:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Internal server error.'
+        });
+    }
+});
+
+// Resend verification email route
+router.post('/resend-verification', async(req: Request, res: Response) => {
+    try {
+        const { email } = req.body;
+
+        if (!email) {
+            return res.status(400).json({
+                success: false,
+                message: 'Email is required.'
+            });
+        }
+
+        const user = await User.findOne({ where: { email } });
+
+        if (!user) {
+            return res.status(404).json({
+                success: false,
+                message: 'No account found with this email address.'
+            });
+        }
+
+        if (user.isEmailVerified) {
+            return res.status(400).json({
+                success: false,
+                message: 'Email is already verified.'
+            });
+        }
+
+        // Generate new verification token
+        const verificationToken = generateVerificationToken();
+        const verificationExpires = new Date(Date.now() + 24 * 60 * 60 * 1000);
+
+        user.emailVerificationToken = verificationToken;
+        user.emailVerificationExpires = verificationExpires;
+        await user.save();
+
+        // Send verification email
+        await sendVerificationEmail(user.email, user.username, verificationToken);
+
+        res.status(200).json({
+            success: true,
+            message: 'Verification email sent! Please check your inbox.'
+        });
+
+    } catch (error) {
+        console.error('Error resending verification email:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Internal server error.'
+        });
+    }
+});
+
+// Updated login route to check email verification
+router.post('/login', validateUserLogin, async(req: Request, res: Response) => {
+    try {
+        const { username, password } = req.body;
+
+        const user = await User.findOne({ where: { username } });
+        if (!user) {
+            return res.status(401).json({ 
+                success: false,
+                message: 'Invalid username or password.' 
+            });
+        }
+
+        // Check if email is verified
+        if (!user.isEmailVerified) {
+            return res.status(403).json({
+                success: false,
+                message: 'Please verify your email address before logging in.',
+                code: 'EMAIL_NOT_VERIFIED',
+                data: {
+                    email: user.email,
+                    canResendVerification: true
+                }
+            });
+        }
+
+        if (!user.passwordHash) {
+            console.error('Password hash is missing for user:', user.username);
+            return res.status(401).json({ 
+                success: false,
+                message: 'Invalid username or password.' 
+            });
+        }
+
+        const isMatch = await bcrypt.compare(password, user.passwordHash);
+        if (!isMatch) {
+            return res.status(401).json({ 
+                success: false,
+                message: 'Invalid username or password.' 
+            });
+        }
+
+        const token = jwt.sign(
+            { 
+                userId: user.id, 
+                username: user.username,
+                isEmailVerified: user.isEmailVerified
+            },
+            JWT_SECRET,
+            { expiresIn: '7d' }
+        );
+
+        res.status(200).json({
+            success: true,
+            message: 'Login successful.',
+            data: {
+                token,
+                user: {
+                    id: user.id,
+                    username: user.username,
+                    email: user.email,
+                    isEmailVerified: user.isEmailVerified
+                }
+            }
+        });
+
+    } catch (error) {
+        console.error('Error during login:', error);
+        res.status(500).json({ 
+            success: false,
+            message: 'Internal server error.' 
+        });
     }
 });
 

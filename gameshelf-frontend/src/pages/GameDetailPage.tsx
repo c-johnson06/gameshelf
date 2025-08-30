@@ -10,7 +10,7 @@ import {
     Category as CategoryIcon, DateRange as DateRangeIcon, Star as StarIcon,
     Add as AddIcon, Recommend as RecommendIcon
 } from '@mui/icons-material';
-import { getGameDetails, updateUserGameReview, addUserGame, getRelatedGames, deleteUserGame } from '../services/api';
+import { getGameDetails, updateUserGameReview, addUserGame, getRelatedGames, deleteUserGame, deleteUserReview } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import ReviewForm from '../components/ReviewForm';
 import type { Game } from '../types';
@@ -110,15 +110,7 @@ const GameDetailPage = () => {
             throw new Error("You must be logged in to delete a review.");
         }
         
-        // Use the review deletion endpoint
-        await fetch(`/api/users/${user.id}/games/${gameId}/review`, {
-            method: 'DELETE',
-            headers: {
-                'Authorization': `Bearer ${token}`,
-                'Content-Type': 'application/json'
-            }
-        });
-        
+        await deleteUserReview(user.id, parseInt(gameId));
         await fetchDetails();
     };
 

@@ -8,9 +8,10 @@ const apiClient = axios.create({
   headers: {
     'Content-Type': 'application/json',
   },
-  timeout: 10000, 
+  timeout: 10000, // 10 second timeout
 });
 
+// Request interceptor to add auth token
 apiClient.interceptors.request.use((config) => {
   const token = localStorage.getItem('token');
   if (token) {
@@ -19,6 +20,7 @@ apiClient.interceptors.request.use((config) => {
   return config;
 });
 
+// Response interceptor for error handling
 apiClient.interceptors.response.use(
   (response) => response,
   (error) => {
@@ -73,4 +75,16 @@ export const getUserProfile = (userId: number) => {
 
 export const getRelatedGames = (gameId: number) => {
   return apiClient.get(`/games/${gameId}/related`);
+};
+
+export const deleteUserReview = (userId: number, gameId: number) => {
+  return apiClient.delete(`/users/${userId}/games/${gameId}/review`);
+};
+
+export const verifyEmail = (token: string) => {
+  return apiClient.get(`/verify-email/${token}`);
+};
+
+export const resendVerificationEmail = (email: string) => {
+  return apiClient.post('/resend-verification', { email });
 };

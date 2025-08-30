@@ -6,7 +6,9 @@ import RegisterPage from '../pages/RegisterPage';
 import ProfilePage from '../pages/ProfilePage';
 import ProtectedRoute from './ProtectedRoute';
 import GamesPage from '../pages/GamesPage';
-import GameDetailPage from '../pages/GameDetailPage'; // <-- Import the new page
+import GameDetailPage from '../pages/GameDetailPage';
+import EmailVerificationPage from '../pages/EmailVerificationPage';
+import ResendVerificationPage from '../pages/ResendVerificationPage';
 
 export const router = createBrowserRouter([
   {
@@ -17,7 +19,9 @@ export const router = createBrowserRouter([
       { path: 'login', element: <LoginPage /> },
       { path: 'register', element: <RegisterPage /> },
       { path: 'games', element: <GamesPage /> },
-      { path: 'games/:gameId', element: <GameDetailPage /> }, // <-- Add the new route
+      { path: 'games/:gameId', element: <GameDetailPage /> },
+      { path: 'verify-email', element: <EmailVerificationPage /> },
+      { path: 'resend-verification', element: <ResendVerificationPage /> },
       {
         element: <ProtectedRoute />,
         children: [

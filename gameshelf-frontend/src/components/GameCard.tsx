@@ -1,4 +1,5 @@
-import { Card, CardMedia, CardContent, Typography, CardActions, Button, CardActionArea, Rating, Box, Select, MenuItem, FormControl, InputLabel } from '@mui/material';
+import { Card, CardMedia, CardContent, Typography, CardActions, Button, CardActionArea, Rating, Box, Select, MenuItem, FormControl, InputLabel, IconButton } from '@mui/material';
+import { Delete as DeleteIcon } from '@mui/icons-material';
 import { Link } from 'react-router-dom';
 import type { Game } from '../types';
 import { useState } from 'react';
@@ -7,10 +8,11 @@ interface GameCardProps {
   game: Game;
   onAddToShelf: (game: Game, playStatus: 'plan-to-play' | 'completed') => void;
   onUpdateGame: (gameId: number, playStatus: string, personalRating: number | null) => void;
+  onDeleteGame?: (game: Game) => void; // New optional delete function
   isInShelf: boolean;
 }
 
-const GameCard = ({ game, onAddToShelf, onUpdateGame, isInShelf }: GameCardProps) => {
+const GameCard = ({ game, onAddToShelf, onUpdateGame, onDeleteGame, isInShelf }: GameCardProps) => {
   const [playStatus, setPlayStatus] = useState(game.UserGame?.playStatus || 'plan-to-play');
   const [personalRating, setPersonalRating] = useState(game.UserGame?.personalRating || null);
 
@@ -26,7 +28,28 @@ const GameCard = ({ game, onAddToShelf, onUpdateGame, isInShelf }: GameCardProps
   };
 
   return (
-    <Card sx={{ display: 'flex', flexDirection: 'column', height: '100%', backgroundColor: 'background.paper' }}>
+    <Card sx={{ display: 'flex', flexDirection: 'column', height: '100%', backgroundColor: 'background.paper', position: 'relative' }}>
+      {/* Delete button - only show if onDeleteGame is provided */}
+      {onDeleteGame && (
+        <IconButton
+          onClick={() => onDeleteGame(game)}
+          sx={{
+            position: 'absolute',
+            top: 8,
+            right: 8,
+            zIndex: 2,
+            backgroundColor: 'rgba(0,0,0,0.7)',
+            color: 'white',
+            '&:hover': {
+              backgroundColor: 'rgba(244,67,54,0.8)',
+            },
+          }}
+          size="small"
+        >
+          <DeleteIcon fontSize="small" />
+        </IconButton>
+      )}
+
       <CardActionArea component={Link} to={`/games/${game.id}`} sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column' }}>
         <CardMedia
           component="img"
@@ -51,6 +74,7 @@ const GameCard = ({ game, onAddToShelf, onUpdateGame, isInShelf }: GameCardProps
           )}
         </CardContent>
       </CardActionArea>
+      
       <CardActions sx={{ justifyContent: 'center', p: 2, flexDirection: 'column' }}>
         {isInShelf ? (
           <>
@@ -76,7 +100,9 @@ const GameCard = ({ game, onAddToShelf, onUpdateGame, isInShelf }: GameCardProps
             />
           </>
         ) : (
-          <Button size="small" variant="contained" onClick={() => onAddToShelf(game, 'plan-to-play')}>Add to Shelf</Button>
+          <Button size="small" variant="contained" onClick={() => onAddToShelf(game, 'plan-to-play')}>
+            Add to Shelf
+          </Button>
         )}
       </CardActions>
     </Card>
