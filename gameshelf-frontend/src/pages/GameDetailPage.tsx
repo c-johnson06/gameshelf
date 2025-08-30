@@ -64,6 +64,7 @@ const GameDetailPage = () => {
 
     const fetchDetails = async () => {
         if (!gameId) return;
+        if(!token) return;
         try {
             setLoading(true);
             setError(null);
@@ -109,7 +110,7 @@ const GameDetailPage = () => {
             throw new Error("You must be logged in to delete a review.");
         }
         
-        await deleteUserReview(user.id, parseInt(gameId));
+        await deleteUserReview(user.id, parseInt(gameId), token);
         await fetchDetails();
     };
 
@@ -131,7 +132,7 @@ const GameDetailPage = () => {
                 platforms: details.platforms,
                 genres: details.genres,
             };
-            await addUserGame(user.id, gameData, 'plan-to-play');
+            await addUserGame(user.id, gameData, 'plan-to-play', token);
             await fetchDetails();
         } catch (err: any) {
             setError(err.response?.data?.message || "Failed to add game to shelf.");
@@ -202,15 +203,15 @@ const GameDetailPage = () => {
                         <Typography variant="h5" gutterBottom>Details</Typography>
                         <Box sx={{ display: 'flex', alignItems: 'center', mb: 1.5 }}>
                             <DateRangeIcon color="action" sx={{ mr: 1.5 }} />
-                            <Typography><strong>Released:</strong> {details.released}</Typography>
+                            <Typography><strong>Released:</strong> {details.released || 'N/A'}</Typography>
                         </Box>
                         <Box sx={{ display: 'flex', alignItems: 'center', mb: 1.5 }}>
                             <DeveloperModeIcon color="action" sx={{ mr: 1.5 }} />
-                            <Typography><strong>Developers:</strong> {details.developers.join(', ')}</Typography>
+                            <Typography><strong>Developers:</strong> {details.developers?.join(', ') || 'N/A'}</Typography>
                         </Box>
                         <Box sx={{ display: 'flex', alignItems: 'center', mb: 1.5 }}>
                             <CategoryIcon color="action" sx={{ mr: 1.5 }} />
-                            <Typography><strong>Genres:</strong> {details.genres.join(', ')}</Typography>
+                            <Typography><strong>Genres:</strong> {details.genres?.join(', ') || 'N/A'}</Typography>
                         </Box>
                         {details.website && (
                             <Box sx={{ display: 'flex', alignItems: 'center', mb: 1.5 }}>
@@ -227,7 +228,7 @@ const GameDetailPage = () => {
                         
                         <Typography variant="h6" sx={{ mt: 2, mb: 1 }}>Platforms</Typography>
                         <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
-                            {details.platforms.map(p => <Chip key={p} label={p} size="small" />)}
+                            {details.platforms?.map(p => <Chip key={p} label={p} size="small" />) || []}
                         </Box>
                     </Paper>
                 </Grid>
@@ -237,7 +238,7 @@ const GameDetailPage = () => {
                     <Paper sx={{ p: 3, borderRadius: 3, mb: 4 }}>
                         <Typography variant="h5" gutterBottom>Description</Typography>
                         <Typography paragraph sx={{ whiteSpace: 'pre-wrap', color: 'text.secondary' }}>
-                            {details.description_raw}
+                            {details.description_raw || 'No description available.'}
                         </Typography>
                     </Paper>
 

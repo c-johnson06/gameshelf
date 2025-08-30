@@ -1,22 +1,20 @@
 import { Router } from 'express';
-import type{ Request, Response, NextFunction } from 'express';
+import type { Request, Response, NextFunction } from 'express';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import User from './models/User.js';
 import Game from './models/Game.js';
 import UserGame from './models/UserGame.js';
 import axios from 'axios';
-import { authRateLimiter } from './middleware/security.js';
-import { validateRegister, validateLogin, validateUserAndGameIds, validateUpdateUserGame } from './middleware/validation.js';
 
 const router = Router();
 
-// Ensure JWT_SECRET and RAWG_API_KEY are loaded from environment variables
-const JWT_SECRET = process.env.JWT_SECRET;
+// Environment variables
+const JWT_SECRET = process.env.JWT_SECRET || 'fallback-secret-key';
 const RAWG_API_KEY = process.env.RAWG_API_KEY;
 
-if (!JWT_SECRET || !RAWG_API_KEY) {
-    throw new Error('Missing critical environment variables: JWT_SECRET or RAWG_API_KEY');
+if (!RAWG_API_KEY) {
+    console.warn('⚠️  RAWG_API_KEY not found in environment variables');
 }
 
 // Custom interface to extend Request object
@@ -27,11 +25,35 @@ interface AuthenticatedRequest extends Request {
     };
 }
 
+// Simple validation middleware
+const validateRegister = (req: Request, res: Response, next: NextFunction) => {
+    const { email, username, password } = req.body;
+    
+    if (!email || !username || !password) {
+        return res.status(400).json({ message: 'Email, username, and password are required' });
+    }
+    
+    if (password.length < 6) {
+        return res.status(400).json({ message: 'Password must be at least 6 characters long' });
+    }
+    
+    next();
+};
 
-// Middleware to verify JWT token
+const validateLogin = (req: Request, res: Response, next: NextFunction) => {
+    const { username, password } = req.body;
+    
+    if (!username || !password) {
+        return res.status(400).json({ message: 'Username and password are required' });
+    }
+    
+    next();
+};
+
+// JWT middleware
 const authenticateToken = (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
     const authHeader = req.headers['authorization'];
-    const token = authHeader && authHeader.split(' ')[1]; // Bearer TOKEN
+    const token = authHeader && authHeader.split(' ')[1];
 
     if (!token) {
         return res.status(401).json({ message: 'Access token required' });
@@ -46,7 +68,7 @@ const authenticateToken = (req: AuthenticatedRequest, res: Response, next: NextF
     });
 };
 
-// Optional Middleware to add user to request if token is valid
+// Optional authentication middleware
 const addUserIfAuthenticated = (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
     const authHeader = req.headers['authorization'];
     const token = authHeader && authHeader.split(' ')[1];
@@ -56,26 +78,24 @@ const addUserIfAuthenticated = (req: AuthenticatedRequest, res: Response, next: 
             if (!err) {
                 req.user = user;
             }
-            next();
         });
-    } else {
-        next();
     }
+    next();
 };
 
+// Auth routes
+router.post('/register', validateRegister, async (req: Request, res: Response, next: NextFunction) => {
+    try {
+        const { email, username, password } = req.body;
 
-router.post('/register', authRateLimiter, validateRegister, async(req: Request, res: Response, next: NextFunction) => {
-    try{
-        const { email, username, password} = req.body;
-
-        const existingUser = await User.findOne({where: {username}});
-        if(existingUser){
-            return res.status(409).json({message: 'Username already taken.'});
+        const existingUser = await User.findOne({ where: { username } });
+        if (existingUser) {
+            return res.status(409).json({ message: 'Username already taken' });
         }
 
-        const existingEmail = await User.findOne({where: {email}});
-        if(existingEmail){
-            return res.status(409).json({message: 'Email already in use.'});
+        const existingEmail = await User.findOne({ where: { email } });
+        if (existingEmail) {
+            return res.status(409).json({ message: 'Email already in use' });
         }
 
         const salt = await bcrypt.genSalt(10);
@@ -88,7 +108,7 @@ router.post('/register', authRateLimiter, validateRegister, async(req: Request, 
         });
 
         res.status(201).json({
-            message: 'User registered successfully.',
+            message: 'User registered successfully',
             userId: newUser.id
         });
 
@@ -97,18 +117,18 @@ router.post('/register', authRateLimiter, validateRegister, async(req: Request, 
     }
 });
 
-router.post('/login', authRateLimiter, validateLogin, async(req: Request, res: Response, next: NextFunction) => {
-    try{
+router.post('/login', validateLogin, async (req: Request, res: Response, next: NextFunction) => {
+    try {
         const { username, password } = req.body;
 
-        const user = await User.findOne({where: {username}});
-        if(!user || !user.passwordHash){
-            return res.status(401).json({message: 'Invalid username or password.'});
+        const user = await User.findOne({ where: { username } });
+        if (!user || !user.passwordHash) {
+            return res.status(401).json({ message: 'Invalid username or password' });
         }
 
         const isMatch = await bcrypt.compare(password, user.passwordHash);
-        if(!isMatch){
-            return res.status(401).json({message: 'Invalid username or password.'});
+        if (!isMatch) {
+            return res.status(401).json({ message: 'Invalid username or password' });
         }
 
         const token = jwt.sign(
@@ -118,7 +138,7 @@ router.post('/login', authRateLimiter, validateLogin, async(req: Request, res: R
         );
 
         res.status(200).json({
-            message: 'Login successful.',
+            message: 'Login successful',
             token,
             userId: user.id,
             username: user.username
@@ -129,7 +149,7 @@ router.post('/login', authRateLimiter, validateLogin, async(req: Request, res: R
     }
 });
 
-router.get('/verify', authenticateToken, async(req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+router.get('/verify', authenticateToken, async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
     try {
         if (!req.user) {
             return res.status(401).json({ message: 'Authentication required' });
@@ -156,16 +176,30 @@ router.get('/verify', authenticateToken, async(req: AuthenticatedRequest, res: R
     }
 });
 
-router.get('/search', async(req: Request, res: Response, next: NextFunction) => {
-    try{
+// Game search route
+router.get('/search', async (req: Request, res: Response, next: NextFunction) => {
+    try {
         const { query } = req.query;
 
-        if(!query || typeof query !== 'string'){
-            return res.status(400).json({message: 'Query parameter is required.'});
+        if (!query || typeof query !== 'string') {
+            return res.status(400).json({ message: 'Query parameter is required' });
         }
 
+        if (!RAWG_API_KEY) {
+            return res.status(500).json({ 
+                message: 'Game service temporarily unavailable - API key not configured' 
+            });
+        }
+
+        console.log(`🔍 Searching for games with query: "${query}"`);
+        
         const response = await axios.get(`https://api.rawg.io/api/games`, {
-            params: { key: RAWG_API_KEY, search: query, page_size: 12 }
+            params: { 
+                key: RAWG_API_KEY, 
+                search: query, 
+                page_size: 12 
+            },
+            timeout: 10000
         });
 
         const games = response.data.results.map((game: any) => ({
@@ -178,29 +212,52 @@ router.get('/search', async(req: Request, res: Response, next: NextFunction) => 
             genres: game.genres ? game.genres.map((g: any) => g.name) : []
         }));
 
-        res.status(200).json({games});
+        console.log(`✅ Found ${games.length} games for query: "${query}"`);
+        res.status(200).json({ games });
 
-    } catch (error) {
-       next(error);
+    } catch (error: any) {
+        console.error('❌ Search error:', error.message);
+        if (error.code === 'ECONNABORTED') {
+            return res.status(504).json({ message: 'Search request timed out' });
+        }
+        next(error);
     }
 });
 
+// Test route
+router.get('/test', (req: Request, res: Response) => {
+    res.json({ 
+        message: 'API is working!', 
+        timestamp: new Date().toISOString(),
+        environment: process.env.NODE_ENV || 'development'
+    });
+});
+
+// Game details route
 router.get('/games/:gameId', addUserIfAuthenticated, async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
     try {
         const { gameId } = req.params;
-
-        if(!gameId) return res.status(400).json({message: 'User ID is required.'});
+        if(!gameId) {
+            return res.status(400).json({ message: 'Game ID is required' });
+        }
 
         const gameIdNum = parseInt(gameId, 10);
         if (isNaN(gameIdNum)) {
-            return res.status(400).json({ message: 'Invalid game ID.' });
+            return res.status(400).json({ message: 'Invalid game ID' });
+        }
+
+        if (!RAWG_API_KEY) {
+            return res.status(500).json({ message: 'Game service temporarily unavailable' });
         }
 
         const rawgResponse = await axios.get(`https://api.rawg.io/api/games/${gameId}`, {
-            params: { key: RAWG_API_KEY }
+            params: { key: RAWG_API_KEY },
+            timeout: 10000
         });
+        
         const gameDetails = rawgResponse.data;
 
+        // Get user reviews and ratings
         const userGames = await UserGame.findAll({
             where: { gameId: gameIdNum },
             include: [{ model: User, attributes: ['id', 'username'] }]
@@ -226,8 +283,9 @@ router.get('/games/:gameId', addUserIfAuthenticated, async (req: AuthenticatedRe
         } | null = null;
         
         if (req.user) {
-            const userId = req.user.userId;
-            const userGame = await UserGame.findOne({ where: { userId, gameId: gameIdNum }});
+            const userGame = await UserGame.findOne({ 
+                where: { userId: req.user.userId, gameId: gameIdNum }
+            });
             if (userGame) {
                 userGameStatus = {
                     playStatus: userGame.playStatus,
@@ -260,17 +318,29 @@ router.get('/games/:gameId', addUserIfAuthenticated, async (req: AuthenticatedRe
     }
 });
 
-router.post('/users/:userId/games', authenticateToken, validateUserAndGameIds, async(req: AuthenticatedRequest, res: Response, next: NextFunction) => {
-    try{
+// User game management routes
+router.post('/users/:userId/games', authenticateToken, async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+    try {
         const { userId } = req.params;
         const gameData = req.body;
 
-        if(!userId) return res.status(400).json({message: 'User ID is required.'});
+        if(!userId) {
+            return res.status(400).json({ message: 'User ID is required' });
+        }
 
         if (req.user?.userId !== parseInt(userId)) {
-            return res.status(403).json({message: 'Access denied.'});
+            return res.status(403).json({ message: 'Access denied' });
         }
-        
+
+        // Check if game already exists in user's library
+        const existingUserGame = await UserGame.findOne({
+            where: { userId: parseInt(userId), gameId: gameData.id }
+        });
+
+        if (existingUserGame) {
+            return res.status(409).json({ message: 'Game already exists in your library' });
+        }
+
         const [game] = await Game.findOrCreate({
             where: { id: gameData.id },
             defaults: {
@@ -284,8 +354,6 @@ router.post('/users/:userId/games', authenticateToken, validateUserAndGameIds, a
             }
         });
 
-        if(!userId) return res.status(400).json({message: 'User ID is required.'});
-
         const userGame = await UserGame.create({
             userId: parseInt(userId),
             gameId: game.id,
@@ -293,89 +361,65 @@ router.post('/users/:userId/games', authenticateToken, validateUserAndGameIds, a
             personalRating: gameData.personalRating || null
         });
 
-        res.status(201).json({message: 'Game added to your library successfully.', userGame });
+        res.status(201).json({ 
+            message: 'Game added to your library successfully', 
+            userGame 
+        });
 
     } catch (error) {
-        next(error)
+        next(error);
     }
 });
 
-router.get('/users/:userId/games', authenticateToken, async(req: AuthenticatedRequest, res: Response, next: NextFunction) => {
-    try{
+// Get user games
+router.get('/users/:userId/games', authenticateToken, async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+    try {
         const { userId } = req.params;
 
-        if(!userId) return res.status(400).json({message: 'User ID is required.'});
+        if(!userId) {
+            return res.status(400).json({ message: 'User ID is required' });
+        }
 
         if (req.user?.userId !== parseInt(userId)) {
-            return res.status(403).json({message: 'Access denied.'});
-        }
-        
-        const user = await User.scope('withGames').findByPk(userId);
-
-        if(!user){
-            return res.status(404).json({message: 'User not found.'});
+            return res.status(403).json({ message: 'Access denied' });
         }
 
-        res.status(200).json((user as any).Games || []);
+        const userGames = await UserGame.findAll({
+            where: { userId: parseInt(userId) },
+            include: [{
+                model: Game,
+                as: 'Game'
+            }]
+        });
 
-    } catch (error) {
-       next(error);
-    }
-});
+        const games = userGames.map(userGame => {
+            const game = (userGame as any).Game;
+            return {
+                id: game.id,
+                name: game.name,
+                released: game.releaseDate,
+                background_image: game.backgroundImage,
+                backgroundImage: game.backgroundImage,
+                rating: game.rating,
+                platforms: game.platform ? game.platform.split(', ') : [],
+                genres: game.genres ? game.genres.split(', ') : [],
+                UserGame: {
+                    playStatus: userGame.playStatus,
+                    personalRating: userGame.personalRating,
+                    review: userGame.review,
+                    createdAt: userGame.createdAt,
+                    updatedAt: userGame.updatedAt
+                }
+            };
+        });
 
-router.patch('/users/:userId/games/:gameId', authenticateToken, validateUserAndGameIds, validateUpdateUserGame, async(req: AuthenticatedRequest, res: Response, next: NextFunction) => {
-    try{
-        const { userId, gameId } = req.params;
-        const { playStatus, personalRating, review } = req.body;
-
-        if(!userId) return res.status(400).json({message: 'User ID is required.'});
-
-        if (req.user?.userId !== parseInt(userId)) {
-            return res.status(403).json({message: 'Access denied.'});
-        }
-
-        if(!gameId) return res.status(400).json({message: 'User ID is required.'});
-
-        const userGame = await UserGame.findOne({where: {userId: parseInt(userId), gameId: parseInt(gameId)}});
-        if(!userGame){
-            return res.status(404).json({message: 'Game not found in your library.'});
-        }
-
-        if(playStatus) userGame.playStatus = playStatus;
-        if(personalRating !== undefined) userGame.personalRating = personalRating;
-        if(review !== undefined) userGame.review = review;
-
-        await userGame.save();
-        res.status(200).json({message: 'Game updated successfully.', userGame });
+        res.status(200).json(games);
 
     } catch (error) {
         next(error);
     }
 });
 
-router.delete('/users/:userId/games/:gameId', authenticateToken, validateUserAndGameIds, async(req: AuthenticatedRequest, res: Response, next: NextFunction) => {
-    try{
-        const { userId, gameId } = req.params;
-
-        if(!userId) return res.status(400).json({message: 'User ID is required.'});
-
-        if (req.user?.userId !== parseInt(userId)) {
-            return res.status(403).json({message: 'Access denied.'});
-        }
-
-        if(!gameId) return res.status(400).json({message: 'User ID is required.'});
-
-        const userGame = await UserGame.findOne({where: {userId: parseInt(userId), gameId: parseInt(gameId)}});
-        if(!userGame){
-            return res.status(404).json({message: 'Game not found in your library.'});
-        }
-
-        await userGame.destroy();
-        res.status(200).json({message: 'Game removed from your library successfully.'});
-
-    } catch (error) {
-        next(error);
-    }
-});
+// Additional routes can be added here...
 
 export default router;

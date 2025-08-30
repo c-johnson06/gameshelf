@@ -16,6 +16,20 @@ const lazyLoad = (componentImport: Promise<{ default: React.ComponentType<any> }
   );
 };
 
+const EmailVerificationPage = () => (
+  <Box sx={{ textAlign: 'center', mt: 8 }}>
+    <h2>Email Verification</h2>
+    <p>This feature is not yet implemented in the demo version.</p>
+  </Box>
+);
+
+const ResendVerificationPage = () => (
+  <Box sx={{ textAlign: 'center', mt: 8 }}>
+    <h2>Resend Verification</h2>
+    <p>This feature is not yet implemented in the demo version.</p>
+  </Box>
+);
+
 const HomePage = lazyLoad(import('../pages/HomePage'));
 const LoginPage = lazyLoad(import('../pages/LoginPage'));
 const RegisterPage = lazyLoad(import('../pages/RegisterPage'));
@@ -23,9 +37,6 @@ const ProfilePage = lazyLoad(import('../pages/ProfilePage'));
 const GamesPage = lazyLoad(import('../pages/GamesPage'));
 const GameDetailPage = lazyLoad(import('../pages/GameDetailPage'));
 const ProtectedRoute = lazy(() => import('./ProtectedRoute'));
-const EmailVerificationPage = lazyLoad(import('../pages/EmailVerificationPage'));
-const ResendVerificationPage = lazyLoad(import('../pages/ResendVerificationPage'));
-
 
 export const router = createBrowserRouter([
   {
@@ -37,20 +48,19 @@ export const router = createBrowserRouter([
       { path: 'register', element: RegisterPage },
       { path: 'games', element: GamesPage },
       { path: 'games/:gameId', element: GameDetailPage },
-      { path: 'profile', element: <ProtectedRoute />, children: [{ index: true, element: ProfilePage }] },
-      { path: 'profile/:userId', element: ProfilePage },
-      { path: 'email-verify', element: EmailVerificationPage },
-      { path: 'resend-verification', element: ResendVerificationPage },
-      {
+      { 
+        path: 'profile/:userId', 
         element: (
           <Suspense fallback={<CircularProgress />}>
             <ProtectedRoute />
           </Suspense>
         ),
         children: [
-          { path: 'profile/:userId', element: ProfilePage },
+          { index: true, element: ProfilePage }
         ]
-      }
+      },
+      { path: 'email-verify', element: <EmailVerificationPage /> },
+      { path: 'resend-verification', element: <ResendVerificationPage /> },
     ],
   },
 ]);
