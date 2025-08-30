@@ -8,7 +8,6 @@ class UserGame extends Model<InferAttributes<UserGame>, InferCreationAttributes<
     declare userId: ForeignKey<User['id']>;
     declare gameId: ForeignKey<Game['id']>;
     declare playStatus: 'playing' | 'completed' | 'on-hold' | 'dropped' | 'plan-to-play';
-    // Rating can be null if the user hasn't rated it yet.
     declare personalRating: CreationOptional<number | null>;
     declare review: CreationOptional<string | null>;
     declare createdAt: CreationOptional<Date>;

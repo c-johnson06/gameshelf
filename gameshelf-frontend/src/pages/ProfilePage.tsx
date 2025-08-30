@@ -10,7 +10,7 @@ import {
   Delete as DeleteIcon 
 } from '@mui/icons-material';
 import { useAuth } from '../context/AuthContext';
-import { getUserGames, getUserProfile, deleteUserGame, updateUserGame } from '../services/api';
+import { getUserGames, getUserProfile, removeUserGame, updateUserGame } from '../services/api';
 import type { Game } from '../types';
 import GameCard from '../components/GameCard';
 
@@ -116,7 +116,7 @@ const ProfilePage = () => {
     if (!deleteDialog.game || !user || !token) return;
 
     try {
-      await deleteUserGame(user.id, deleteDialog.game.id);
+      await removeUserGame(user.id, deleteDialog.game.id);
       setGames(games.filter(g => g.id !== deleteDialog.game!.id));
       setDeleteDialog({ open: false, game: null });
     } catch (err) {

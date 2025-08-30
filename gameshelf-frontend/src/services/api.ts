@@ -1,37 +1,25 @@
 import axios from 'axios';
 import type { Game } from '../types';
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000/api';
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
 
 const apiClient = axios.create({
   baseURL: API_BASE_URL,
   headers: {
     'Content-Type': 'application/json',
   },
-  timeout: 10000, // 10 second timeout
 });
 
-// Request interceptor to add auth token
-apiClient.interceptors.request.use((config) => {
-  const token = localStorage.getItem('token');
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
-  }
-  return config;
-});
-
-// Response interceptor for error handling
-apiClient.interceptors.response.use(
-  (response) => response,
-  (error) => {
-    if (error.response?.status === 401) {
-      localStorage.removeItem('token');
-      localStorage.removeItem('user');
-      window.location.href = '/login';
+apiClient.interceptors.request.use(config => {
+    const token = localStorage.getItem('token');
+    if (token) {
+        config.headers.Authorization = `Bearer ${token}`;
     }
+    return config;
+}, error => {
     return Promise.reject(error);
-  }
-);
+});
+
 
 export const registerUser = (userData: any) => {
   return apiClient.post('/register', userData);
@@ -65,7 +53,7 @@ export const updateUserGame = (userId: number, gameId: number, data: { playStatu
   return apiClient.patch(`/users/${userId}/games/${gameId}`, data);
 };
 
-export const deleteUserGame = (userId: number, gameId: number) => {
+export const removeUserGame = (userId: number, gameId: number) => {
   return apiClient.delete(`/users/${userId}/games/${gameId}`);
 };
 

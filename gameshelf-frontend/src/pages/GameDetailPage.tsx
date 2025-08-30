@@ -10,7 +10,7 @@ import {
     Category as CategoryIcon, DateRange as DateRangeIcon, Star as StarIcon,
     Add as AddIcon, Recommend as RecommendIcon
 } from '@mui/icons-material';
-import { getGameDetails, updateUserGameReview, addUserGame, getRelatedGames, deleteUserGame, deleteUserReview } from '../services/api';
+import { getGameDetails, updateUserGameReview, addUserGame, getRelatedGames, removeUserGame, deleteUserReview } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import ReviewForm from '../components/ReviewForm';
 import type { Game } from '../types';
@@ -67,7 +67,7 @@ const GameDetailPage = () => {
         try {
             setLoading(true);
             setError(null);
-            const response = await getGameDetails(parseInt(gameId));
+            const response = await getGameDetails(parseInt(gameId), token);
             setDetails(response.data.details);
             setReviews(response.data.reviews);
             setAverageRating(response.data.averageRating);
@@ -88,7 +88,6 @@ const GameDetailPage = () => {
             setRelatedGames(response.data.games);
         } catch (err) {
             console.error('Failed to fetch related games:', err);
-            // Don't show error for related games, just fail silently
         } finally {
             setRelatedLoading(false);
         }
@@ -98,7 +97,7 @@ const GameDetailPage = () => {
         if (!user || !token || !gameId) {
             throw new Error("You must be logged in to submit a review.");
         }
-        await updateUserGameReview(user.id, parseInt(gameId),{
+        await updateUserGameReview(user.id, parseInt(gameId), token, {
             personalRating: rating,
             review: reviewText,
         });
@@ -145,7 +144,7 @@ const GameDetailPage = () => {
         if (!user || !token || !gameId) return;
         
         try {
-            await deleteUserGame(user.id, parseInt(gameId));
+            await removeUserGame(user.id, parseInt(gameId), token);
             await fetchDetails();
         } catch (err: any) {
             setError("Failed to remove game from shelf.");

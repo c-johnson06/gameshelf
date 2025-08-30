@@ -1,19 +1,16 @@
 import nodemailer from 'nodemailer';
 import crypto from 'crypto';
 
-// Email transporter setup
 const createTransporter = () => {
     if (process.env.NODE_ENV === 'production') {
-        // Production email service (e.g., SendGrid, AWS SES, etc.)
         return nodemailer.createTransport({
-            service: 'SendGrid', // or your preferred service
+            service: 'SendGrid', 
             auth: {
                 user: process.env.EMAIL_USER,
                 pass: process.env.EMAIL_PASS
             }
         });
     } else {
-        // Development - use Ethereal Email (temporary testing emails)
         return nodemailer.createTransport({
             host: 'smtp.ethereal.email',
             port: 587,
@@ -25,12 +22,10 @@ const createTransporter = () => {
     }
 };
 
-// Generate verification token
 export const generateVerificationToken = (): string => {
     return crypto.randomBytes(32).toString('hex');
 };
 
-// Send verification email
 export const sendVerificationEmail = async (
     email: string, 
     username: string, 
@@ -98,16 +93,15 @@ export const sendVerificationEmail = async (
         const result = await transporter.sendMail(mailOptions);
         
         if (process.env.NODE_ENV === 'development') {
-            console.log('📧 Verification email sent!');
-            console.log('📧 Preview URL:', nodemailer.getTestMessageUrl(result));
+            console.log('Verification email sent!');
+            console.log('Preview URL:', nodemailer.getTestMessageUrl(result));
         }
     } catch (error) {
-        console.error('❌ Failed to send verification email:', error);
+        console.error('Failed to send verification email:', error);
         throw new Error('Failed to send verification email');
     }
 };
 
-// Send password reset email (bonus feature)
 export const sendPasswordResetEmail = async (
     email: string, 
     username: string, 
@@ -174,11 +168,11 @@ export const sendPasswordResetEmail = async (
         const result = await transporter.sendMail(mailOptions);
         
         if (process.env.NODE_ENV === 'development') {
-            console.log('📧 Password reset email sent!');
-            console.log('📧 Preview URL:', nodemailer.getTestMessageUrl(result));
+            console.log('Password reset email sent!');
+            console.log('Preview URL:', nodemailer.getTestMessageUrl(result));
         }
     } catch (error) {
-        console.error('❌ Failed to send password reset email:', error);
+        console.error('Failed to send password reset email:', error);
         throw new Error('Failed to send password reset email');
     }
 };

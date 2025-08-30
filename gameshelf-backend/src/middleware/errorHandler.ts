@@ -1,5 +1,4 @@
-// gameshelf-backend/src/middleware/errorHandler.ts
-import { Request, Response, NextFunction } from 'express';
+import type { Request, Response, NextFunction } from 'express';
 
 export interface AppError extends Error {
     statusCode?: number;
@@ -7,7 +6,6 @@ export interface AppError extends Error {
     code?: string;
 }
 
-// Global error handler
 export const errorHandler = (
     err: AppError,
     req: Request,
@@ -18,7 +16,6 @@ export const errorHandler = (
     let message = err.message || 'Internal Server Error';
     let code = err.code;
 
-    // Handle specific error types
     if (err.name === 'SequelizeValidationError') {
         statusCode = 400;
         message = 'Validation error';
@@ -41,7 +38,6 @@ export const errorHandler = (
         code = 'DATABASE_ERROR';
     }
 
-    // Log error details (but not in test environment)
     if (process.env.NODE_ENV !== 'test') {
         const errorLog = {
             timestamp: new Date().toISOString(),
@@ -70,7 +66,6 @@ export const errorHandler = (
         }
     }
 
-    // Send error response
     res.status(statusCode).json({
         success: false,
         message: process.env.NODE_ENV === 'production' && statusCode === 500 
@@ -84,7 +79,6 @@ export const errorHandler = (
     });
 };
 
-// 404 handler for unmatched routes
 export const notFoundHandler = (req: Request, res: Response) => {
     res.status(404).json({
         success: false,
@@ -93,7 +87,6 @@ export const notFoundHandler = (req: Request, res: Response) => {
     });
 };
 
-// Health check endpoint
 export const healthCheck = (req: Request, res: Response) => {
     const uptime = process.uptime();
     const timestamp = new Date().toISOString();
