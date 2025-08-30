@@ -255,7 +255,6 @@ const ProfilePage = () => {
                       <Button
                         size="small"
                         color="error"
-                        startIcon={<DeleteIcon />}
                         onClick={() => setDeleteDialog({ open: true, game })}
                         sx={{ 
                           position: 'absolute',
