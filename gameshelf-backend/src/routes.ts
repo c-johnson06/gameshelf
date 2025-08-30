@@ -422,4 +422,132 @@ router.delete('/users/:userId/games/:gameId', authenticateToken, async(req: Requ
     }
 });
 
+router.get('/users/:userId/profile', async (req: Request, res: Response) => {
+    try {
+        const { userId } = req.params;
+
+        if (!userId || isNaN(parseInt(userId))) {
+            return res.status(400).json({ message: 'Invalid user ID.' });
+        }
+
+        const user = await User.findByPk(userId, {
+            attributes: ['id', 'username', 'email', 'createdAt']
+        });
+
+        if (!user) {
+            return res.status(404).json({ message: 'User not found.' });
+        }
+
+        const userGames = await UserGame.findAll({
+            where: { userId: parseInt(userId) }
+        });
+
+        const totalGames = userGames.length;
+        const completedGames = userGames.filter(ug => ug.playStatus === 'completed').length;
+        const currentlyPlaying = userGames.filter(ug => ug.playStatus === 'playing').length;
+        
+        const ratings = userGames
+            .map(ug => ug.personalRating)
+            .filter(r => r !== null) as number[];
+        
+        const averageRating = ratings.length > 0 
+            ? ratings.reduce((acc, rating) => acc + rating, 0) / ratings.length 
+            : null;
+
+        res.status(200).json({
+            ...user.toJSON(),
+            totalGames,
+            completedGames,
+            currentlyPlaying,
+            averageRating
+        });
+
+    } catch (error) {
+        console.error('Error fetching user profile:', error);
+        res.status(500).json({ message: 'Internal server error.' });
+    }
+});
+
+router.get('/games/:gameId/related', async (req: Request, res: Response) => {
+    try {
+        const { gameId } = req.params;
+        const apiKey = process.env.RAWG_API_KEY;
+
+        const currentGameResponse = await axios.get(`https://api.rawg.io/api/games/${gameId}`, {
+            params: { key: apiKey }
+        });
+
+        const currentGame = currentGameResponse.data;
+        
+        const genreIds = currentGame.genres?.map((g: any) => g.id).slice(0, 2).join(',');
+        
+        let relatedGames = [];
+        
+        if (genreIds) {
+            const relatedResponse = await axios.get(`https://api.rawg.io/api/games`, {
+                params: { 
+                    key: apiKey,
+                    genres: genreIds,
+                    page_size: 12,
+                    ordering: '-rating'
+                }
+            });
+            if(!gameId) return res.status(400).json({ message: 'Game ID is required.' });
+            relatedGames = relatedResponse.data.results
+                .filter((game: any) => game.id !== parseInt(gameId))
+                .slice(0, 8)
+                .map((game: any) => ({
+                    id: game.id,
+                    name: game.name,
+                    released: game.released,
+                    background_image: game.background_image,
+                    rating: game.rating,
+                    platforms: game.platforms ? game.platforms.map((p: any) => p.platform.name) : [],
+                    genres: game.genres ? game.genres.map((g: any) => g.name) : []
+                }));
+        }
+
+        res.status(200).json({ games: relatedGames });
+
+    } catch (error) {
+        console.error('Error fetching related games:', error);
+        res.status(500).json({ message: 'Internal server error.' });
+    }
+});
+
+router.delete('/users/:userId/games/:gameId/review', authenticateToken, async (req: Request, res: Response) => {
+    try {
+        const { userId, gameId } = req.params;
+
+        if (!userId || isNaN(parseInt(userId)) || !gameId || isNaN(parseInt(gameId))) {
+            return res.status(400).json({ message: 'Invalid user or game ID.' });
+        }
+        
+        if ((req as any).user.userId !== parseInt(userId)) {
+            return res.status(403).json({ message: 'Access denied.' });
+        }
+
+        const userGame = await UserGame.findOne({
+            where: { userId: parseInt(userId), gameId: parseInt(gameId) }
+        });
+
+        if (!userGame) {
+            return res.status(404).json({ message: 'Game not found in your library.' });
+        }
+
+        userGame.personalRating = null;
+        userGame.review = null;
+        await userGame.save();
+
+        res.status(200).json({ 
+            message: 'Review deleted successfully.',
+            userGame 
+        });
+
+    } catch (error) {
+        console.error('Error deleting user review:', error);
+        res.status(500).json({ message: 'Internal server error.' });
+    }
+});
+
 export default router;
