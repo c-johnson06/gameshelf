@@ -1,4 +1,4 @@
-import { useState} from 'react';
+import { useState } from 'react';
 import { 
   Container, Typography, Box, CircularProgress, Grid, Alert, 
   TextField, Button, Chip,
@@ -10,7 +10,7 @@ import {
   Clear as ClearIcon 
 } from '@mui/icons-material';
 import { useAuth } from '../context/AuthContext';
-import { searchGames, addUserGame } from '../services/api';
+import { searchGames, addUserGame, updateUserGame } from '../services/api';
 import type { Game, SearchFilters } from '../types';
 import GameCard from '../components/GameCard';
 
@@ -34,7 +34,7 @@ const GamesPage = () => {
   const [hasSearched, setHasSearched] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
   const [page, setPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
+  const [totalPages, setTotalPages] = useState(0);
 
   const [filters, setFilters] = useState<SearchFilters>({
     genres: [],
@@ -50,42 +50,30 @@ const GamesPage = () => {
     setHasSearched(true);
     if (!query.trim()) {
       setGames([]);
+      setTotalPages(0);
       return;
     }
 
     try {
       setLoading(true);
       setError(null);
-      setSuccessMessage(null);
       
-      // Build search parameters
-      const searchParams: any = {
-        search: query,
-        page: newPage,
-        page_size: 12
-      };
+      const response = await searchGames({ query, page: newPage, page_size: 12 });
 
-      if (filters.genres && filters.genres.length > 0) {
-        searchParams.genres = filters.genres.join(',');
-      }
-      if (filters.platforms && filters.platforms.length > 0) {
-        searchParams.platforms = filters.platforms.join(',');
-      }
-      if (filters.minRating && filters.minRating > 0) {
-        searchParams.metacritic = `${filters.minRating * 20},100`; // Convert to metacritic scale
-      }
-      if (filters.releaseYear) {
-        searchParams.dates = `${filters.releaseYear}-01-01,${filters.releaseYear}-12-31`;
+      setGames(response.data.games || []);
+      
+      if (response.data.pagination && response.data.pagination.total) {
+        const { total, pageSize } = response.data.pagination;
+        setPage(newPage);
+        setTotalPages(Math.ceil(total / pageSize));
+      } else {
+        setPage(1);
+        setTotalPages(0);
       }
 
-      const response = await searchGames(query);
-      setGames(response.data.games);
-      setPage(newPage);
-      // Note: RAWG API doesn't provide total pages directly, so we estimate
-      setTotalPages(response.data.games.length === 12 ? newPage + 1 : newPage);
-    } catch (err) {
-      setError('Failed to fetch games. Please try again later.');
-      console.error(err);
+    } catch (err: any) {
+      setError(err.response?.data?.message || 'Failed to fetch games.');
+      console.error("Detailed search error:", err.response || err);
     } finally {
       setLoading(false);
     }
@@ -110,6 +98,16 @@ const GamesPage = () => {
       console.error(err);
     }
   };
+  
+  const handleUpdateGame = async (gameId: number, playStatus: string, personalRating: number | null) => {
+    if (!user || !token) return;
+    try {
+      await updateUserGame(user.id, gameId, { playStatus, personalRating });
+    } catch (err) {
+      setError('Failed to update game.');
+    }
+  };
+
 
   const handleFilterChange = (filterType: keyof SearchFilters, value: any) => {
     setFilters(prev => ({ ...prev, [filterType]: value }));
@@ -341,7 +339,7 @@ const GamesPage = () => {
               <GameCard
                 game={game}
                 onAddToShelf={handleAddToShelf}
-                onUpdateGame={() => {}}
+                onUpdateGame={handleUpdateGame}
                 isInShelf={!!game.UserGame}
               />
             </Grid>
@@ -363,7 +361,7 @@ const GamesPage = () => {
       </Grid>
 
       {/* Pagination */}
-      {games.length > 0 && totalPages > 1 && (
+      {totalPages > 1 && (
         <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}>
           <Pagination
             count={totalPages}

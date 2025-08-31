@@ -1,9 +1,9 @@
-import { 
-  AppBar, 
-  Toolbar, 
-  Typography, 
-  Button, 
-  Box, 
+import {
+  AppBar,
+  Toolbar,
+  Typography,
+  Button,
+  Box,
   IconButton,
   Menu,
   MenuItem,
@@ -14,11 +14,12 @@ import {
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { 
+import {
   Home as HomeIcon,
   Search as SearchIcon,
   Person as PersonIcon,
-  Bookmarks as BookmarksIcon
+  Bookmarks as BookmarksIcon,
+  People as PeopleIcon
 } from '@mui/icons-material';
 
 const Header = () => {
@@ -49,9 +50,9 @@ const Header = () => {
   };
 
   return (
-    <AppBar 
-      position="sticky" 
-      sx={{ 
+    <AppBar
+      position="sticky"
+      sx={{
         background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
         boxShadow: '0 4px 20px rgba(0,0,0,0.1)'
       }}
@@ -112,6 +113,20 @@ const Header = () => {
             </Button>
             <Button
               component={Link}
+              to="/users"
+              color="inherit"
+              startIcon={<PeopleIcon />}
+              sx={{
+                '&:hover': {
+                  backgroundColor: 'rgba(255,255,255,0.1)',
+                  transform: 'translateY(-1px)'
+                }
+              }}
+            >
+              Find Users
+            </Button>
+            <Button
+              component={Link}
               to={user ? `/profile/${user.id}` : "/login"}
               color="inherit"
               startIcon={<BookmarksIcon />}
@@ -133,15 +148,16 @@ const Header = () => {
             <>
               <IconButton
                 onClick={handleUserMenu}
-                sx={{ 
+                sx={{
                   p: 0,
                   '&:hover': {
                     transform: 'scale(1.1)'
                   }
                 }}
               >
-                <Avatar 
-                  sx={{ 
+                <Avatar
+                  src={user.avatar || undefined}
+                  sx={{
                     bgcolor: 'secondary.main',
                     width: 36,
                     height: 36,
@@ -212,9 +228,9 @@ const Header = () => {
 
       {/* Mobile Navigation */}
       {isMobile && (
-        <Box sx={{ 
-          display: 'flex', 
-          justifyContent: 'center', 
+        <Box sx={{
+          display: 'flex',
+          justifyContent: 'space-around',
           pb: 1,
           borderTop: '1px solid rgba(255,255,255,0.1)'
         }}>
@@ -235,6 +251,15 @@ const Header = () => {
             startIcon={<SearchIcon />}
           >
             Search
+          </Button>
+          <Button
+            component={Link}
+            to="/users"
+            color="inherit"
+            size="small"
+            startIcon={<PeopleIcon />}
+          >
+            Users
           </Button>
           <Button
             component={Link}

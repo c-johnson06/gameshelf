@@ -6,6 +6,7 @@ import jwt from 'jsonwebtoken';
 import User from './models/User.js';
 import Game from './models/Game.js';
 import UserGame from './models/UserGame.js';
+import Follow from './models/Follow.js'; // Import the Follow model
 import axios from 'axios';
 
 const router = Router();
@@ -180,7 +181,8 @@ router.get('/verify', authenticateToken, async (req: AuthenticatedRequest, res: 
 // Game search route
 router.get('/search', async (req: Request, res: Response, next: NextFunction) => {
     try {
-        const { query } = req.query;
+        // Now accepting page and page_size from the query
+        const { query, page = '1', page_size = '12' } = req.query;
 
         if (!query || typeof query !== 'string') {
             return res.status(400).json({ message: 'Query parameter is required' });
@@ -191,14 +193,13 @@ router.get('/search', async (req: Request, res: Response, next: NextFunction) =>
                 message: 'Game service temporarily unavailable - API key not configured' 
             });
         }
-
-        console.log(`🔍 Searching for games with query: "${query}"`);
         
         const response = await axios.get(`https://api.rawg.io/api/games`, {
             params: { 
                 key: RAWG_API_KEY, 
                 search: query, 
-                page_size: 12 
+                page: page, // Pass page to the external API
+                page_size: page_size // Pass page_size to the external API
             },
             timeout: 10000
         });
@@ -213,22 +214,27 @@ router.get('/search', async (req: Request, res: Response, next: NextFunction) =>
             genres: game.genres ? game.genres.map((g: any) => g.name) : []
         }));
 
-        console.log(`✅ Found ${games.length} games for query: "${query}"`);
-        res.status(200).json({ games });
+        // RETURN THE PAGINATION OBJECT
+        res.status(200).json({ 
+            games,
+            pagination: {
+                total: response.data.count, // The total number of games found
+                page: parseInt(page as string, 10),
+                pageSize: parseInt(page_size as string, 10)
+            }
+        });
 
     } catch (error: any) {
         console.error('❌ Search error:', error.message);
-        if (error.code === 'ECONNABORTED') {
-            return res.status(504).json({ message: 'Search request timed out' });
-        }
-        next(error);
+        // Ensure a consistent error response format
+        res.status(500).json({ message: 'Failed to fetch games from external service.' });
     }
 });
 
 // Test route
 router.get('/test', (req: Request, res: Response) => {
-    res.json({ 
-        message: 'API is working!', 
+    res.json({
+        message: 'API is working!',
         timestamp: new Date().toISOString(),
         environment: process.env.NODE_ENV || 'development'
     });
@@ -255,7 +261,7 @@ router.get('/games/:gameId', addUserIfAuthenticated, async (req: AuthenticatedRe
             params: { key: RAWG_API_KEY },
             timeout: 10000
         });
-        
+
         const gameDetails = rawgResponse.data;
 
         // FIXED: Get user reviews manually without include
@@ -270,7 +276,7 @@ router.get('/games/:gameId', addUserIfAuthenticated, async (req: AuthenticatedRe
                 const user = await User.findByPk(userGame.userId, {
                     attributes: ['id', 'username']
                 });
-                
+
                 if (user) {
                     reviews.push({
                         userId: user.id,
@@ -291,9 +297,9 @@ router.get('/games/:gameId', addUserIfAuthenticated, async (req: AuthenticatedRe
             personalRating: number | null;
             review: string | null;
         } | null = null;
-        
+
         if (req.user) {
-            const userGame = await UserGame.findOne({ 
+            const userGame = await UserGame.findOne({
                 where: { userId: req.user.userId, gameId: gameIdNum }
             });
             if (userGame) {
@@ -374,9 +380,9 @@ router.post('/users/:userId/games', authenticateToken, async (req: Authenticated
             tags: []
         });
 
-        res.status(201).json({ 
-            message: 'Game added to your library successfully', 
-            userGame 
+        res.status(201).json({
+            message: 'Game added to your library successfully',
+            userGame
         });
 
     } catch (error) {
@@ -385,16 +391,12 @@ router.post('/users/:userId/games', authenticateToken, async (req: Authenticated
 });
 
 // FIXED: Get user games with manual join
-router.get('/users/:userId/games', authenticateToken, async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+router.get('/users/:userId/games', async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
     try {
         const { userId } = req.params;
 
-        if(!userId) {
+        if(!userId || isNaN(parseInt(userId))) {
             return res.status(400).json({ message: 'User ID is required' });
-        }
-
-        if (req.user?.userId !== parseInt(userId)) {
-            return res.status(403).json({ message: 'Access denied' });
         }
 
         // Get user games first
@@ -505,27 +507,29 @@ router.get('/users/:userId/profile', async (req: Request, res: Response, next: N
         }
 
         const user = await User.findByPk(userId, {
-            attributes: ['id', 'username', 'email', 'createdAt']
+            attributes: ['id', 'username', 'email', 'createdAt', 'bio', 'avatar']
         });
 
         if (!user) {
             return res.status(404).json({ message: 'User not found' });
         }
 
-        const userGames = await UserGame.findAll({
-            where: { userId: parseInt(userId) }
-        });
+        const [userGames, followersCount, followeesCount] = await Promise.all([
+            UserGame.findAll({ where: { userId: parseInt(userId) } }),
+            Follow.count({ where: { followeeId: parseInt(userId) } }),
+            Follow.count({ where: { followerId: parseInt(userId) } })
+        ]);
 
         const totalGames = userGames.length;
         const completedGames = userGames.filter(ug => ug.playStatus === 'completed').length;
         const currentlyPlaying = userGames.filter(ug => ug.playStatus === 'playing').length;
-        
+
         const ratings = userGames
             .map(ug => ug.personalRating)
             .filter(r => r !== null) as number[];
-        
-        const averageRating = ratings.length > 0 
-            ? ratings.reduce((acc, rating) => acc + rating, 0) / ratings.length 
+
+        const averageRating = ratings.length > 0
+            ? ratings.reduce((acc, rating) => acc + rating, 0) / ratings.length
             : null;
 
         res.status(200).json({
@@ -533,7 +537,9 @@ router.get('/users/:userId/profile', async (req: Request, res: Response, next: N
             totalGames,
             completedGames,
             currentlyPlaying,
-            averageRating
+            averageRating,
+            followersCount,
+            followeesCount
         });
 
     } catch (error) {
@@ -546,7 +552,7 @@ router.get('/users/:userId/profile', async (req: Request, res: Response, next: N
 router.patch('/users/:userId/profile', authenticateToken, async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
     try {
         const { userId } = req.params;
-        const { bio, avatar, preferences } = req.body; // Destructure without banner
+        const { bio, avatar } = req.body;
 
         if (!userId || isNaN(parseInt(userId))) {
             return res.status(400).json({ message: 'Invalid user ID' });
@@ -559,8 +565,16 @@ router.patch('/users/:userId/profile', authenticateToken, async (req: Authentica
         if (!user) {
             return res.status(404).json({ message: 'User not found' });
         }
+        
+        // Update fields if they are provided in the request
+        if (bio !== undefined) {
+            user.bio = bio;
+        }
+        if (avatar !== undefined) {
+            user.avatar = avatar;
+        }
 
-        await user.setProfile({ bio, avatar, preferences });
+        await user.save(); // This persists the changes to the database
 
         res.status(200).json({ message: 'Profile updated successfully', user: user.toSafeJSON() });
     } catch (error) {
@@ -667,6 +681,54 @@ router.get('/users/search', async (req: Request, res: Response, next: NextFuncti
         });
 
         res.status(200).json({ users });
+    } catch (error) {
+        next(error);
+    }
+});
+
+// Follow a user
+router.post('/users/:userId/follow', authenticateToken, async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+    try {
+        const { userId } = req.params;
+        const followerId = req.user?.userId;
+
+        if (!followerId || !userId || isNaN(parseInt(userId))) {
+            return res.status(400).json({ message: 'Invalid user ID' });
+        }
+
+        if (followerId === parseInt(userId)) {
+            return res.status(400).json({ message: 'You cannot follow yourself' });
+        }
+
+        await Follow.create({
+            followerId,
+            followeeId: parseInt(userId)
+        });
+
+        res.status(201).json({ message: 'User followed successfully' });
+    } catch (error) {
+        next(error);
+    }
+});
+
+// Unfollow a user
+router.delete('/users/:userId/follow', authenticateToken, async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+    try {
+        const { userId } = req.params;
+        const followerId = req.user?.userId;
+
+        if (!followerId || !userId || isNaN(parseInt(userId))) {
+            return res.status(400).json({ message: 'Invalid user ID' });
+        }
+
+        await Follow.destroy({
+            where: {
+                followerId,
+                followeeId: parseInt(userId)
+            }
+        });
+
+        res.status(200).json({ message: 'User unfollowed successfully' });
     } catch (error) {
         next(error);
     }

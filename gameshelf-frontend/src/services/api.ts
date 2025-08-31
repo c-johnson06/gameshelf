@@ -39,8 +39,9 @@ export const loginUser = (credentials: any) => {
   return apiClient.post('/login', credentials);
 };
 
-export const searchGames = (query: string) => {
-  return apiClient.get('/search', { params: { query } });
+// CORRECTED: searchGames now accepts an object for pagination and filtering
+export const searchGames = (params: { query: string; page?: number; page_size?: number }) => {
+  return apiClient.get('/search', { params });
 };
 
 export const getUserGames = (userId: number) => {
@@ -87,7 +88,6 @@ export const unfollowUser = (userId: number) => {
   return apiClient.delete(`/users/${userId}/follow`);
 };
 
-// Update the updateUserProfile function to reflect the removal of the banner field
 export const updateUserProfile = (userId: number, data: { bio?: string, avatar?: string }) => {
     return apiClient.patch(`/users/${userId}/profile`, data);
 };

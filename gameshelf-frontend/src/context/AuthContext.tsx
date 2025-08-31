@@ -1,4 +1,4 @@
-import { createContext, useState, useContext, useEffect } from 'react';
+import { createContext, useState, useContext, useEffect, useCallback } from 'react';
 import type { ReactNode } from 'react';
 import { loginUser as apiLogin, registerUser as apiRegister } from '../services/api';
 import { useNavigate } from 'react-router-dom';
@@ -7,6 +7,7 @@ import { useNavigate } from 'react-router-dom';
 interface User {
   id: number;
   username: string;
+  avatar?: string;
 }
 
 // Define the shape of the context value
@@ -17,6 +18,7 @@ interface AuthContextType {
   login: (credentials: LoginCredentials) => Promise<void>;
   register: (userData: RegisterData) => Promise<void>;
   logout: () => void;
+  updateUser: (userData: Partial<User>) => void;
 }
 
 interface LoginCredentials {
@@ -45,7 +47,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     try {
       const storedToken = localStorage.getItem('token');
       const storedUser = localStorage.getItem('user');
-      
+
       if (storedToken && storedUser) {
         setToken(storedToken);
         setUser(JSON.parse(storedUser));
@@ -59,10 +61,19 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     setIsLoading(false);
   }, []);
 
+  const updateUser = useCallback((userData: Partial<User>) => {
+    setUser(prevUser => {
+      if (!prevUser) return null;
+      const newUser = { ...prevUser, ...userData };
+      localStorage.setItem('user', JSON.stringify(newUser));
+      return newUser;
+    });
+  }, []);
+
   const login = async (credentials: LoginCredentials) => {
     try {
       const response = await apiLogin(credentials);
-      
+
       // Extract data from response - backend should return token, userId, username
       const { token: authToken, userId, username } = response.data;
 
@@ -84,7 +95,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       navigate(`/profile/${userId}`);
     } catch (error: any) {
       console.error('Login error:', error);
-      
+
       // Handle different error types
       if (error.response?.status === 401) {
         throw new Error('Invalid username or password');
@@ -103,7 +114,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       navigate('/login');
     } catch (error: any) {
       console.error('Registration error:', error);
-      
+
       // Handle different error types
       if (error.response?.status === 409) {
         throw new Error(error.response.data.message || 'Username or email already exists');
@@ -125,7 +136,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     navigate('/');
   };
 
-  const value = { user, token, isLoading, login, register, logout };
+  const value = { user, token, isLoading, login, register, logout, updateUser };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };

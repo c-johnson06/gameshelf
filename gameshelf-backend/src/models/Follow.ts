@@ -46,18 +46,20 @@ Follow.init({
     ]
 });
 
-User.belongsToMany(Follow, { 
-    as: 'Followees',
+// Corrected Associations: User follows User, through the Follow model.
+User.belongsToMany(User, {
+    as: 'Followees', // Users that this user follows
     through: Follow,
     foreignKey: 'followerId',
     otherKey: 'followeeId'
 });
 
-User.belongsToMany(Follow, {
-    as: 'Followers',
+User.belongsToMany(User, {
+    as: 'Followers', // Users that follow this user
     through: Follow,
     foreignKey: 'followeeId',
     otherKey: 'followerId'
 });
+
 
 export default Follow;
