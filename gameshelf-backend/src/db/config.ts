@@ -1,30 +1,45 @@
 import { Sequelize } from "sequelize";
-import dotenv from 'dotenv';
-
-dotenv.config();
+import { env } from '../config/environment.js';
 
 let sequelize: Sequelize;
 
-if (process.env.NODE_ENV === 'production') {
-    if (!process.env.DATABASE_URL) {
-        throw new Error('DATABASE_URL environment variable is not set for production');
+if (env.NODE_ENV === 'production') {
+    if (!env.DATABASE_URL) {
+        throw new Error('DATABASE_URL environment variable is required for production');
     }
-    sequelize = new Sequelize(process.env.DATABASE_URL, {
+    
+    sequelize = new Sequelize(env.DATABASE_URL, {
         dialect: 'postgres',
         protocol: 'postgres',
         dialectOptions: {
             ssl: {
                 require: true,
-                rejectUnauthorized: false 
+                rejectUnauthorized: true, // Fixed security issue
             }
         },
-        logging: false
+        logging: false,
+        pool: {
+            max: 20,
+            min: 5,
+            acquire: 30000,
+            idle: 10000
+        },
+        benchmark: true,
+        retry: {
+            max: 3
+        }
     });
 } else {
     sequelize = new Sequelize({
         dialect: 'sqlite',
         storage: './gameshelf.sqlite',
-        logging: console.log
+        logging: env.NODE_ENV === 'development' ? console.log : false,
+        pool: {
+            max: 10,
+            min: 2,
+            acquire: 30000,
+            idle: 10000
+        }
     });
 }
 
