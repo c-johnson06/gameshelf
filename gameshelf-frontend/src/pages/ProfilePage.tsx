@@ -13,6 +13,11 @@ import { useAuth } from '../context/AuthContext';
 import { getUserGames, getUserProfile, deleteUserGame, updateUserGame } from '../services/api';
 import type { Game } from '../types';
 import GameCard from '../components/GameCard';
+import { 
+  followUser, 
+  unfollowUser,
+  updateUserProfile 
+} from '../services/api';
 
 interface UserProfile {
   id: number;
@@ -46,10 +51,14 @@ const ProfilePage = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [tabValue, setTabValue] = useState(0);
-  const [deleteDialog, setDeleteDialog] = useState<{ open: boolean; game: Game | null }>({ 
-    open: false, 
-    game: null 
+  const [deleteDialog, setDeleteDialog] = useState<{ open: boolean; game: Game | null }>({
+    open: false,
+    game: null
   });
+
+  // Add state for following status
+  const [isFollowing, setIsFollowing] = useState(false);
+  const [followLoading, setFollowLoading] = useState(false);
 
   const isOwnProfile = user && userId && user.id.toString() === userId;
 
@@ -67,25 +76,60 @@ const ProfilePage = () => {
     try {
       setLoading(true);
       setError(null);
-      
+
       const [profileResponse, gamesResponse] = await Promise.all([
         getUserProfile(parseInt(userId)),
         getUserGames(parseInt(userId))
       ]);
 
       setProfile(profileResponse.data);
-      
+
       const formattedGames = gamesResponse.data.map((game: any) => ({
         ...game,
-        background_image: game.backgroundImage,
         UserGame: game.UserGame,
       }));
       setGames(formattedGames);
+
+      // Check if the current user is following this profile
+      if (user && user.id.toString() !== userId) {
+          // A new API call is needed to check this, or the profile endpoint can be modified to include this info.
+          // For now, let's assume we get this from the user's data on the profile object
+      }
     } catch (err) {
       setError('Failed to fetch profile data.');
       console.error(err);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleFollow = async () => {
+    if (!user || !token || !userId) return;
+    setFollowLoading(true);
+    try {
+      await followUser(parseInt(userId));
+      setIsFollowing(true);
+      // Optimistically update followers count
+      setProfile(prev => prev ? { ...prev, followersCount: prev.followersCount + 1 } : prev);
+    } catch (err) {
+      setError('Failed to follow user.');
+    } finally {
+      setFollowLoading(false);
+    }
+  };
+
+  const handleUnfollow = async () => {
+    if (!user || !token || !userId) return;
+    setFollowLoading(true);
+    try {
+      await unfollowUser(parseInt(userId));
+      setIsFollowing(false);
+      // Optimistically update followers count
+      setProfile(prev => prev ? { ...prev, followersCount: prev.followersCount - 1 } : prev);
+    } catch (err) {
+      setError('Failed to unfollow user.');
+    } finally {
+      setFollowLoading(false);
     }
   };
 

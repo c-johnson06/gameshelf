@@ -6,7 +6,8 @@ import RegisterPage from '../pages/RegisterPage';
 import ProfilePage from '../pages/ProfilePage';
 import ProtectedRoute from './ProtectedRoute';
 import GamesPage from '../pages/GamesPage';
-import GameDetailPage from '../pages/GameDetailPage'; // <-- Import the new page
+import GameDetailPage from '../pages/GameDetailPage';
+import UserSearchPage from '../pages/UserSearchPage'; // <-- Import the new page
 
 export const router = createBrowserRouter([
   {
@@ -17,7 +18,8 @@ export const router = createBrowserRouter([
       { path: 'login', element: <LoginPage /> },
       { path: 'register', element: <RegisterPage /> },
       { path: 'games', element: <GamesPage /> },
-      { path: 'games/:gameId', element: <GameDetailPage /> }, // <-- Add the new route
+      { path: 'games/:gameId', element: <GameDetailPage /> },
+      { path: 'users', element: <UserSearchPage /> }, // <-- Add the new route here
       {
         element: <ProtectedRoute />,
         children: [

@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import type { Request, Response, NextFunction } from 'express';
+import { Op } from 'sequelize';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import User from './models/User.js';
@@ -368,7 +369,9 @@ router.post('/users/:userId/games', authenticateToken, async (req: Authenticated
             userId: parseInt(userId),
             gameId: game.id,
             playStatus: gameData.playStatus || 'plan-to-play',
-            personalRating: gameData.personalRating || null
+            personalRating: gameData.personalRating || null,
+            achievements: [],
+            tags: []
         });
 
         res.status(201).json({ 
@@ -539,6 +542,32 @@ router.get('/users/:userId/profile', async (req: Request, res: Response, next: N
     }
 });
 
+// Update user profile details
+router.patch('/users/:userId/profile', authenticateToken, async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+    try {
+        const { userId } = req.params;
+        const { bio, avatar, preferences } = req.body; // Destructure without banner
+
+        if (!userId || isNaN(parseInt(userId))) {
+            return res.status(400).json({ message: 'Invalid user ID' });
+        }
+        if (req.user?.userId !== parseInt(userId)) {
+            return res.status(403).json({ message: 'Access denied' });
+        }
+
+        const user = await User.findByPk(userId);
+        if (!user) {
+            return res.status(404).json({ message: 'User not found' });
+        }
+
+        await user.setProfile({ bio, avatar, preferences });
+
+        res.status(200).json({ message: 'Profile updated successfully', user: user.toSafeJSON() });
+    } catch (error) {
+        next(error);
+    }
+});
+
 // Related games route
 router.get('/games/:gameId/related', async (req: Request, res: Response, next: NextFunction) => {
     try {
@@ -615,6 +644,31 @@ router.get('/games/:gameId/related', async (req: Request, res: Response, next: N
     } catch (error) {
         console.error('Error fetching related games:', error);
         res.status(200).json({ games: [] }); // Return empty array instead of error
+    }
+});
+
+// Add this route to search for users
+router.get('/users/search', async (req: Request, res: Response, next: NextFunction) => {
+    try {
+        const { query } = req.query;
+
+        if (!query || typeof query !== 'string') {
+            return res.status(400).json({ message: 'Query parameter is required' });
+        }
+
+        const users = await User.findAll({
+            where: {
+                username: {
+                    [Op.like]: `%${query}%`
+                }
+            },
+            attributes: ['id', 'username', 'avatar', 'bio'],
+            limit: 10
+        });
+
+        res.status(200).json({ users });
+    } catch (error) {
+        next(error);
     }
 });
 

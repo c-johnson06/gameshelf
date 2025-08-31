@@ -74,3 +74,20 @@ export const getUserProfile = (userId: number) => {
 export const getRelatedGames = (gameId: number) => {
   return apiClient.get(`/games/${gameId}/related`);
 };
+
+export const searchUsers = (query: string) => {
+  return apiClient.get('/users/search', { params: { query } });
+};
+
+export const followUser = (userId: number) => {
+  return apiClient.post(`/users/${userId}/follow`);
+};
+
+export const unfollowUser = (userId: number) => {
+  return apiClient.delete(`/users/${userId}/follow`);
+};
+
+// Update the updateUserProfile function to reflect the removal of the banner field
+export const updateUserProfile = (userId: number, data: { bio?: string, avatar?: string }) => {
+    return apiClient.patch(`/users/${userId}/profile`, data);
+};

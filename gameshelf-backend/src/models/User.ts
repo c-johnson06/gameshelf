@@ -22,6 +22,8 @@ class User extends Model<InferAttributes<User>, InferCreationAttributes<User>> {
     declare preferences: CreationOptional<object>;
     declare createdAt: CreationOptional<Date>;
     declare updatedAt: CreationOptional<Date>;
+    declare Followers?: User[];
+    declare Followees?: User[];
 
     // Instance methods
     async validatePassword(password: string): Promise<boolean> {
@@ -30,6 +32,13 @@ class User extends Model<InferAttributes<User>, InferCreationAttributes<User>> {
 
     async hashPassword(password: string): Promise<void> {
         this.passwordHash = await bcrypt.hash(password, env.BCRYPT_ROUNDS);
+    }
+
+    async setProfile(profileData: { bio?: string; avatar?: string; preferences?: object }): Promise<void> {
+        if (profileData.bio !== undefined) this.bio = profileData.bio;
+        if (profileData.avatar !== undefined) this.avatar = profileData.avatar;
+        if (profileData.preferences !== undefined) this.preferences = { ...this.preferences, ...profileData.preferences };
+        await this.save();
     }
 
     toSafeJSON() {
@@ -47,6 +56,16 @@ class User extends Model<InferAttributes<User>, InferCreationAttributes<User>> {
                 ]
             }
         });
+    }
+
+    static async getFollowers(userId: number) {
+        const user = await User.findByPk(userId, { include: [{ model: User, as: 'Followers' }] });
+        return user ? user.Followers : [];
+    }
+
+    static async getFollowees(userId: number) {
+        const user = await User.findByPk(userId, { include: [{ model: User, as: 'Followees' }] });
+        return user ? user.Followees : [];
     }
 }
 
@@ -162,5 +181,6 @@ User.init({
         }
     }
 });
+
 
 export default User;

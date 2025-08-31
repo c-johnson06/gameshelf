@@ -25,6 +25,10 @@ export interface UserProfile {
   averageRating: number | null;
   completedGames: number;
   currentlyPlaying: number;
+  bio: string | null;  // Add this
+  avatar: string | null; // Add this
+  followersCount: number; // Add this
+  followeesCount: number; // Add this
 }
 
 export interface GameDetails extends Game {
