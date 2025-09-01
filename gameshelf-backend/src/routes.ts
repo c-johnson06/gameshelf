@@ -6,7 +6,7 @@ import jwt from 'jsonwebtoken';
 import User from './models/User.js';
 import Game from './models/Game.js';
 import UserGame from './models/UserGame.js';
-import Follow from './models/Follow.js'; // Import the Follow model
+import Follow from './models/Follow.js';
 import axios from 'axios';
 
 const router = Router();
@@ -179,32 +179,32 @@ router.get('/verify', authenticateToken, async (req: AuthenticatedRequest, res: 
 });
 
 // Game search route
+// ... (imports are the same)
+
 router.get('/search', async (req: Request, res: Response, next: NextFunction) => {
     try {
-        // Now accepting page and page_size from the query
         const { query, page = '1', page_size = '12' } = req.query;
 
         if (!query || typeof query !== 'string') {
-            return res.status(400).json({ message: 'Query parameter is required' });
+            return res.status(400).json({ games: [], pagination: { total: 0, page: 1, pageSize: 12 } });
         }
 
         if (!RAWG_API_KEY) {
-            return res.status(500).json({ 
-                message: 'Game service temporarily unavailable - API key not configured' 
-            });
+            console.error('RAWG_API_KEY is not configured.');
+            return res.status(500).json({ message: 'Game service temporarily unavailable' });
         }
         
         const response = await axios.get(`https://api.rawg.io/api/games`, {
             params: { 
                 key: RAWG_API_KEY, 
                 search: query, 
-                page: page, // Pass page to the external API
-                page_size: page_size // Pass page_size to the external API
+                page, 
+                page_size 
             },
             timeout: 10000
         });
 
-        const games = response.data.results.map((game: any) => ({
+        const games = response.data.results.map((game) => ({
             id: game.id,
             name: game.name,
             released: game.released,
@@ -214,33 +214,32 @@ router.get('/search', async (req: Request, res: Response, next: NextFunction) =>
             genres: game.genres ? game.genres.map((g: any) => g.name) : []
         }));
 
-        // RETURN THE PAGINATION OBJECT
         res.status(200).json({ 
             games,
             pagination: {
-                total: response.data.count, // The total number of games found
+                total: response.data.count,
                 page: parseInt(page as string, 10),
                 pageSize: parseInt(page_size as string, 10)
             }
         });
 
     } catch (error: any) {
-        console.error('❌ Search error:', error.message);
-        // Ensure a consistent error response format
+        console.error('❌ Game Search Error:', error.message);
+        // If the external API fails, send a structured error response
         res.status(500).json({ message: 'Failed to fetch games from external service.' });
     }
 });
 
 // Test route
 router.get('/test', (req: Request, res: Response) => {
-    res.json({
-        message: 'API is working!',
+    res.json({ 
+        message: 'API is working!', 
         timestamp: new Date().toISOString(),
         environment: process.env.NODE_ENV || 'development'
     });
 });
 
-// FIXED: Game details route with proper manual join
+// Game details route
 router.get('/games/:gameId', addUserIfAuthenticated, async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
     try {
         const { gameId } = req.params;
@@ -261,22 +260,19 @@ router.get('/games/:gameId', addUserIfAuthenticated, async (req: AuthenticatedRe
             params: { key: RAWG_API_KEY },
             timeout: 10000
         });
-
+        
         const gameDetails = rawgResponse.data;
-
-        // FIXED: Get user reviews manually without include
         const userGames = await UserGame.findAll({
             where: { gameId: gameIdNum }
         });
 
-        // Get users separately and create the reviews manually
         const reviews: any[] = [];
         for (const userGame of userGames) {
             if (userGame.review) {
                 const user = await User.findByPk(userGame.userId, {
                     attributes: ['id', 'username']
                 });
-
+                
                 if (user) {
                     reviews.push({
                         userId: user.id,
@@ -297,9 +293,9 @@ router.get('/games/:gameId', addUserIfAuthenticated, async (req: AuthenticatedRe
             personalRating: number | null;
             review: string | null;
         } | null = null;
-
+        
         if (req.user) {
-            const userGame = await UserGame.findOne({
+            const userGame = await UserGame.findOne({ 
                 where: { userId: req.user.userId, gameId: gameIdNum }
             });
             if (userGame) {
@@ -349,7 +345,6 @@ router.post('/users/:userId/games', authenticateToken, async (req: Authenticated
             return res.status(403).json({ message: 'Access denied' });
         }
 
-        // Check if game already exists in user's library
         const existingUserGame = await UserGame.findOne({
             where: { userId: parseInt(userId), gameId: gameData.id }
         });
@@ -380,9 +375,9 @@ router.post('/users/:userId/games', authenticateToken, async (req: Authenticated
             tags: []
         });
 
-        res.status(201).json({
-            message: 'Game added to your library successfully',
-            userGame
+        res.status(201).json({ 
+            message: 'Game added to your library successfully', 
+            userGame 
         });
 
     } catch (error) {
@@ -390,7 +385,6 @@ router.post('/users/:userId/games', authenticateToken, async (req: Authenticated
     }
 });
 
-// FIXED: Get user games with manual join
 router.get('/users/:userId/games', async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
     try {
         const { userId } = req.params;
@@ -399,12 +393,10 @@ router.get('/users/:userId/games', async (req: AuthenticatedRequest, res: Respon
             return res.status(400).json({ message: 'User ID is required' });
         }
 
-        // Get user games first
         const userGames = await UserGame.findAll({
             where: { userId: parseInt(userId) }
         });
 
-        // Then get the games manually
         const games: any[] = [];
         for (const userGame of userGames) {
             const game = await Game.findByPk(userGame.gameId);
@@ -436,7 +428,6 @@ router.get('/users/:userId/games', async (req: AuthenticatedRequest, res: Respon
     }
 });
 
-// Update user game
 router.patch('/users/:userId/games/:gameId', authenticateToken, async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
     try {
         const { userId, gameId } = req.params;
@@ -469,7 +460,6 @@ router.patch('/users/:userId/games/:gameId', authenticateToken, async (req: Auth
     }
 });
 
-// Delete user game
 router.delete('/users/:userId/games/:gameId', authenticateToken, async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
     try {
         const { userId, gameId } = req.params;
@@ -497,7 +487,6 @@ router.delete('/users/:userId/games/:gameId', authenticateToken, async (req: Aut
     }
 });
 
-// User profile route
 router.get('/users/:userId/profile', async (req: Request, res: Response, next: NextFunction) => {
     try {
         const { userId } = req.params;
@@ -523,13 +512,13 @@ router.get('/users/:userId/profile', async (req: Request, res: Response, next: N
         const totalGames = userGames.length;
         const completedGames = userGames.filter(ug => ug.playStatus === 'completed').length;
         const currentlyPlaying = userGames.filter(ug => ug.playStatus === 'playing').length;
-
+        
         const ratings = userGames
             .map(ug => ug.personalRating)
             .filter(r => r !== null) as number[];
-
-        const averageRating = ratings.length > 0
-            ? ratings.reduce((acc, rating) => acc + rating, 0) / ratings.length
+        
+        const averageRating = ratings.length > 0 
+            ? ratings.reduce((acc, rating) => acc + rating, 0) / ratings.length 
             : null;
 
         res.status(200).json({
@@ -548,7 +537,6 @@ router.get('/users/:userId/profile', async (req: Request, res: Response, next: N
     }
 });
 
-// Update user profile details
 router.patch('/users/:userId/profile', authenticateToken, async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
     try {
         const { userId } = req.params;
@@ -566,7 +554,6 @@ router.patch('/users/:userId/profile', authenticateToken, async (req: Authentica
             return res.status(404).json({ message: 'User not found' });
         }
         
-        // Update fields if they are provided in the request
         if (bio !== undefined) {
             user.bio = bio;
         }
@@ -574,7 +561,7 @@ router.patch('/users/:userId/profile', authenticateToken, async (req: Authentica
             user.avatar = avatar;
         }
 
-        await user.save(); // This persists the changes to the database
+        await user.save();
 
         res.status(200).json({ message: 'Profile updated successfully', user: user.toSafeJSON() });
     } catch (error) {
@@ -582,7 +569,6 @@ router.patch('/users/:userId/profile', authenticateToken, async (req: Authentica
     }
 });
 
-// Related games route
 router.get('/games/:gameId/related', async (req: Request, res: Response, next: NextFunction) => {
     try {
         const { gameId } = req.params;
@@ -593,7 +579,6 @@ router.get('/games/:gameId/related', async (req: Request, res: Response, next: N
             return res.status(500).json({ message: 'Game service temporarily unavailable' });
         }
 
-        // Try to get game series first, fallback to genre-based recommendations
         try {
             const response = await axios.get(`https://api.rawg.io/api/games/${gameId}/game-series`, {
                 params: { key: RAWG_API_KEY },
@@ -617,7 +602,6 @@ router.get('/games/:gameId/related', async (req: Request, res: Response, next: N
             console.log('Series API failed, trying genre-based recommendations');
         }
 
-        // Fallback: get current game details and find similar games by genre
         const gameResponse = await axios.get(`https://api.rawg.io/api/games/${gameId}`, {
             params: { key: RAWG_API_KEY }
         });
@@ -652,16 +636,14 @@ router.get('/games/:gameId/related', async (req: Request, res: Response, next: N
             return res.status(200).json({ games });
         }
 
-        // If no genres found, return empty array
         res.status(200).json({ games: [] });
 
     } catch (error) {
         console.error('Error fetching related games:', error);
-        res.status(200).json({ games: [] }); // Return empty array instead of error
+        res.status(200).json({ games: [] });
     }
 });
 
-// Add this route to search for users
 router.get('/users/search', async (req: Request, res: Response, next: NextFunction) => {
     try {
         const { query } = req.query;
@@ -686,7 +668,7 @@ router.get('/users/search', async (req: Request, res: Response, next: NextFuncti
     }
 });
 
-// Follow a user
+
 router.post('/users/:userId/follow', authenticateToken, async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
     try {
         const { userId } = req.params;
@@ -711,7 +693,6 @@ router.post('/users/:userId/follow', authenticateToken, async (req: Authenticate
     }
 });
 
-// Unfollow a user
 router.delete('/users/:userId/follow', authenticateToken, async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
     try {
         const { userId } = req.params;
@@ -733,5 +714,6 @@ router.delete('/users/:userId/follow', authenticateToken, async (req: Authentica
         next(error);
     }
 });
+
 
 export default router;

@@ -57,12 +57,13 @@ const GamesPage = () => {
     try {
       setLoading(true);
       setError(null);
+      setSuccessMessage(null);
       
       const response = await searchGames({ query, page: newPage, page_size: 12 });
 
       setGames(response.data.games || []);
       
-      if (response.data.pagination && response.data.pagination.total) {
+      if (response.data.pagination) {
         const { total, pageSize } = response.data.pagination;
         setPage(newPage);
         setTotalPages(Math.ceil(total / pageSize));
@@ -72,8 +73,8 @@ const GamesPage = () => {
       }
 
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to fetch games.');
-      console.error("Detailed search error:", err.response || err);
+      setError(err.response?.data?.message || 'Failed to fetch games. Please try again later.');
+      console.error("Detailed search error:", err.response?.data || err.message);
     } finally {
       setLoading(false);
     }

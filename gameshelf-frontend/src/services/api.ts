@@ -39,7 +39,6 @@ export const loginUser = (credentials: any) => {
   return apiClient.post('/login', credentials);
 };
 
-// CORRECTED: searchGames now accepts an object for pagination and filtering
 export const searchGames = (params: { query: string; page?: number; page_size?: number }) => {
   return apiClient.get('/search', { params });
 };
